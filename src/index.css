@@ -1,0 +1,122 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Safe Harbor Theme - Student Mental Wellness */
+    --background: 42 20% 98%; /* Warm off-white #FAF8F5 */
+    --foreground: 200 25% 25%; /* Dark muted navy #2F4858 */
+
+    --card: 0 0% 100%; /* Pure white for cards */
+    --card-foreground: 200 25% 25%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 200 25% 25%;
+
+    /* Primary gradient colors */
+    --primary: 207 100% 74%; /* Sky blue #BDE0FE */
+    --primary-variant: 216 100% 82%; /* Light periwinkle #A2D2FF */
+    --primary-foreground: 200 25% 25%;
+
+    --secondary: 0 0% 98%;
+    --secondary-foreground: 200 25% 25%;
+
+    --muted: 42 15% 95%;
+    --muted-foreground: 200 15% 50%;
+
+    --accent: 330 100% 90%; /* Muted coral for emergency #FFC8DD */
+    --accent-foreground: 200 25% 25%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 42 20% 90%;
+    --input: 42 20% 90%;
+    --ring: 207 100% 74%;
+
+    --radius: 1rem;
+    
+    /* Custom gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(207 100% 74%), hsl(216 100% 82%));
+    --gradient-hero: linear-gradient(135deg, hsl(207 100% 74% / 0.1), hsl(216 100% 82% / 0.1));
+    
+    /* Glassmorphism */
+    --glass-bg: hsla(0, 0%, 100%, 0.7);
+    --glass-border: hsla(0, 0%, 100%, 0.2);
+    
+    /* Shadows */
+    --shadow-soft: 0 8px 32px hsla(207, 100%, 74%, 0.1);
+    --shadow-glass: 0 8px 32px hsla(0, 0%, 0%, 0.1);
+
+    --radius: 1rem;
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
