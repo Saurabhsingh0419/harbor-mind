@@ -8,16 +8,21 @@ const DashboardScreen = () => {
   const navigate = useNavigate();
 
   const handleBeginClick = () => {
-    console.log("Begin daily calm clicked");
+    navigate("/wellness-checkin");
   };
 
   const handleFeatureClick = (feature: string) => {
+    console.log(`Feature clicked: ${feature}`); // Debug log
+    
     if (feature === "Resource Library") {
       navigate("/resources");
     } else if (feature === "Wellness Check-in") {
       navigate("/wellness-checkin");
+    } else if (feature === "AI Companion") {
+      console.log("Navigating to AI Companion..."); // Debug log
+      navigate("/ai-companion");
     } else {
-      console.log(`${feature} clicked`);
+      console.log(`${feature} clicked - no navigation defined`);
     }
   };
 
@@ -42,17 +47,17 @@ const DashboardScreen = () => {
             <div className="flex flex-col lg:flex-row items-center space-y-8 lg:space-y-0 lg:space-x-12">
               <div className="flex-1 text-center lg:text-left">
                 <h2 className="text-3xl lg:text-4xl font-semibold text-foreground tracking-wide mb-6">
-                  Your Daily Calm
+                  Your Daily Check-in
                 </h2>
                 <p className="text-lg text-muted-foreground mb-8">
-                  Take a moment to center yourself and start your day with intention and peace.
+                  Take a moment to reflect on your well-being with a few quick questions.
                 </p>
                 <Button 
                   size="lg"
                   className="bg-gradient-primary hover:scale-105 transition-all duration-300 text-white font-semibold px-8 py-4 rounded-2xl shadow-soft"
                   onClick={handleBeginClick}
                 >
-                  Begin
+                  Begin Check-in
                 </Button>
               </div>
               
