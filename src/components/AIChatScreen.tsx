@@ -80,16 +80,19 @@ const AIChatScreen = () => {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => navigate(-1)}
-          aria-label="Go back"
+          onClick={() => navigate('/')}
+          className="hover:bg-white/50"
         >
-          <ArrowLeft className="h-5 w-5" />
+          <ArrowLeft className="h-4 w-4" />
         </Button>
-        <h1 className="text-2xl font-semibold text-foreground">AI Companion</h1>
+        <div>
+          <h1 className="text-xl font-semibold text-foreground">AI Companion</h1>
+          <p className="text-sm text-muted-foreground">Your supportive AI friend</p>
+        </div>
       </header>
 
-      {/* Disclaimer */}
-      <div className="px-6 py-3 bg-blue-50 border-b border-blue-100">
+      {/* Crisis Warning */}
+      <div className="px-6 py-2 bg-blue-50 border-b border-blue-200">
         <p className="text-sm text-blue-800">
           This AI is not a substitute for professional help. If you're in crisis, please call 988 (Suicide & Crisis Lifeline).
         </p>
@@ -113,10 +116,10 @@ const AIChatScreen = () => {
       <ScrollArea className="flex-1">
         <div ref={scrollAreaViewportRef} className="px-6 py-4 space-y-4">
           {messages.length === 0 && (
-        <div className="text-center text-muted-foreground py-8">
-          <p>Start a conversation with your AI companion</p>
-          <p className="text-xs mt-2 text-muted-foreground/70">Your messages are now saved to Firestore</p>
-        </div>
+            <div className="text-center text-muted-foreground py-8">
+              <p>Start a conversation with your AI companion</p>
+              <p className="text-xs mt-2 text-muted-foreground/70">Your messages are now saved to Firestore</p>
+            </div>
           )}
           {messages.map((message) => (
             <div
