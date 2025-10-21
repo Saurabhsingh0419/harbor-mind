@@ -3,9 +3,7 @@ import { initializeApp } from "firebase/app"; // Make sure initializeApp is impo
 import { getAuth, Auth } from "firebase/auth";
 import { getFirestore, Firestore } from "firebase/firestore";
 
-// --- Add this console log for debugging ---
-console.log("Reading VITE_FIREBASE_PROJECT_ID:", import.meta.env.VITE_FIREBASE_PROJECT_ID);
-console.log("All env vars:", import.meta.env); // Log all Vite env vars
+
 // ------------------------------------------
 
 const firebaseConfig = {
