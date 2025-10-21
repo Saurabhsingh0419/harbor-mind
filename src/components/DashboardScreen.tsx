@@ -16,6 +16,8 @@ const DashboardScreen = () => {
       navigate("/resources");
     } else if (feature === "Wellness Check-in") {
       navigate("/wellness-checkin");
+    } else if (feature === "AI Companion") {
+      navigate("/ai-companion");
     } else {
       console.log(`${feature} clicked`);
     }
