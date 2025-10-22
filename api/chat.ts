@@ -33,10 +33,10 @@ const safetySettings = [
 
 // NEW: Configure the model for JSON output
 const model = genAI.getGenerativeModel({
-  model: "gemini-1.5-flash-latest", // Great, fast model
+  model: "gemini-1.5-flash", // <-- CORRECT
   safetySettings,
   generationConfig: {
-    responseMimeType: "application/json", // This forces JSON output!
+    responseMimeType: "application/json", 
   },
 });
 
