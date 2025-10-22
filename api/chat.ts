@@ -1,12 +1,43 @@
 // /api/chat.ts
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-// NEW: Import OpenAI
-import OpenAI from "openai";
+import {
+  GoogleGenerativeAI,
+  HarmCategory,
+  HarmBlockThreshold,
+} from "@google/generative-ai";
 import admin from "firebase-admin";
 
-// NEW: Initialize OpenAI Client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+if (!process.env.GEMINI_API_KEY) {
+  console.error('GEMINI_API_KEY is not set');
+}
+
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+
+const safetySettings = [
+  {
+    category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+    threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+  },
+  {
+    category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+    threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+  },
+  {
+    category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+    threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+  },
+  {
+    category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+    threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+  },
+];
+
+const model = genAI.getGenerativeModel({
+  model: "gemini-1.5-flash", 
+  safetySettings,
+  generationConfig: {
+    responseMimeType: "application/json",
+  },
 });
 
 // --- FIREBASE ADMIN SETUP ---
@@ -25,7 +56,7 @@ try {
 }
 const db = admin.firestore();
 
-// --- SYSTEM PROMPT (for OpenAI) ---
+// --- SYSTEM PROMPT ---
 const SYSTEM_PROMPT = `
 You are “Safe Harbor AI” — an empathetic student companion for mental well-being.
 Detect the user's mood (sad, anxious, angry, calm, happy, lonely, neutral) from their message,
@@ -52,7 +83,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { message } = req.body;
     if (!message) return res.status(400).json({ error: "Missing message" });
 
-    // Load conversation history (UNCHANGED)
     const snaps = await db
       .collection("ai-chats")
       .where("userId", "==", userId)
@@ -75,27 +105,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     User: ${message}
     `;
 
-    // NEW: Call the OpenAI API
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini", // Fast and cheap
-      response_format: { type: "json_object" }, // Enable JSON mode
-      messages: [{ role: "system", content: fullPrompt }],
-      temperature: 0.8,
-    });
-
-    const raw = completion.choices[0]?.message?.content || "";
+    // Call the Gemini API
+    const result = await model.generateContent(fullPrompt);
+    const raw = result.response.text();
     
     let response = { mood: "neutral", reply: "Sorry, I had trouble thinking." };
 
     try {
-      // Because we requested JSON, 'raw' should be a perfect JSON string
       response = JSON.parse(raw);
     } catch (err) {
-      console.error("OpenAI JSON parse fail:", err, raw);
-      response.reply = raw.trim(); // Fallback
+      console.error("Gemini JSON parse fail:", err, raw);
+      const jsonStart = raw.indexOf("{");
+      const jsonEnd = raw.lastIndexOf("}");
+      if (jsonStart > -1 && jsonEnd > -1) {
+        response = JSON.parse(raw.slice(jsonStart, jsonEnd + 1));
+      } else {
+        response.reply = raw.trim();
+      }
     }
 
-    // Firestore save logic (UNCHANGED)
+    // Firestore save logic
     const now = admin.firestore.FieldValue.serverTimestamp();
 
     await db.collection("ai-chats").doc().set({
