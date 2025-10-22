@@ -1,6 +1,5 @@
 // /api/chat.ts
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-// NEW: Import Google Generative AI
 import { 
   GoogleGenerativeAI, 
   HarmCategory, 
@@ -8,10 +7,8 @@ import {
 } from "@google/generative-ai";
 import admin from "firebase-admin";
 
-// NEW: Initialize Gemini
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
-// NEW: Set safety settings to be less restrictive on sensitive topics
 const safetySettings = [
   {
     category: HarmCategory.HARM_CATEGORY_HARASSMENT,
@@ -31,13 +28,14 @@ const safetySettings = [
   },
 ];
 
-// NEW: Configure the model for JSON output
+// 1. --- MODIFIED ---
+// We are switching to 'gemini-pro', which is universally available.
+// We must remove the 'generationConfig' for 'responseMimeType'
+// because 'gemini-pro' does not support it.
 const model = genAI.getGenerativeModel({
-  model: "gemini-1.5-flash", // <-- CORRECT
+  model: "gemini-pro", // Switched to gemini-pro
   safetySettings,
-  generationConfig: {
-    responseMimeType: "application/json", 
-  },
+  // 'generationConfig' with 'responseMimeType' has been removed
 });
 
 // UNCHANGED: Firebase Admin Initialization
@@ -56,7 +54,9 @@ try {
 }
 const db = admin.firestore();
 
-// UPDATED: System prompt optimized for Gemini's JSON mode
+// 2. --- MODIFIED ---
+// The prompt is updated to be even more strict about
+// *only* returning JSON, since we can't force it.
 const SYSTEM_PROMPT = `
 You are “Safe Harbor AI” — an empathetic student companion for mental well-being.
 Detect the user's mood (sad, anxious, angry, calm, happy, lonely, neutral) from their message,
@@ -65,7 +65,7 @@ respond warmly and naturally with one short empathetic reply.
 Do not mention “I detect your mood”. 
 If distress/self-harm is mentioned, remind them to reach a counselor or emergency help.
 
-You MUST return ONLY a valid JSON object matching this exact schema:
+You MUST return ONLY a valid JSON object matching this exact schema, with no other text:
 {"mood":"<oneword>","reply":"<short empathetic response>"}
 `;
 
@@ -73,7 +73,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") return res.status(405).send("Only POST allowed");
 
   try {
-    // UNCHANGED: Token verification
     const token = req.headers.authorization?.split("Bearer ")[1];
     if (!token) return res.status(401).json({ error: "Unauthorized" });
 
@@ -83,7 +82,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { message } = req.body;
     if (!message) return res.status(400).json({ error: "Missing message" });
 
-    // UNCHANGED: Load last few messages
     const snaps = await db
       .collection("ai-chats")
       .where("userId", "==", userId)
@@ -97,7 +95,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .map((m: any) => `${m.sender === "user" ? "User" : "AI"}: ${m.text}`)
       .join("\n");
 
-    // UNCHANGED: We still build one big prompt
     const fullPrompt = `
     ${SYSTEM_PROMPT}
 
@@ -107,49 +104,69 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     User: ${message}
     `;
 
-    // NEW: Call the Gemini API
+    // UNCHANGED: Call the Gemini API
     const result = await model.generateContent(fullPrompt);
     const raw = result.response.text();
     
     let response = { mood: "neutral", reply: "Sorry, I had trouble thinking." };
 
+    // 3. --- MODIFIED ---
+    // This 'try...catch' block is now more robust. It will find
+    // the JSON inside the raw text (e.g., if Gemini wraps it
+    // in ```json ... ``` tags).
     try {
-      // Because we set `responseMimeType`, 'raw' should be a valid JSON string
-      response = JSON.parse(raw);
+      // Find the start and end of the JSON block
+      const jsonStart = raw.indexOf("{");
+      const jsonEnd = raw.lastIndexOf("}");
+      
+      if (jsonStart > -1 && jsonEnd > -1) {
+        const jsonString = raw.slice(jsonStart, jsonEnd + 1);
+        response = JSON.parse(jsonString);
+      } else {
+        // Fallback if no JSON is found at all
+        console.error("No JSON found in Gemini response:", raw);
+        response.reply = raw.trim().replace(/"/g, ''); // Clean up string
+      }
     } catch (err) {
       console.error("Gemini JSON parse fail:", err, raw);
-      // Fallback if Gemini fails to provide JSON
-      response.reply = raw.trim().replace(/"/g, ''); // Clean up stray quotes
+      response.reply = raw.trim().replace(/"/g, ''); // Clean up string
     }
 
     // UNCHANGED: Firestore save logic
     const now = admin.firestore.FieldValue.serverTimestamp();
 
-    const userMessageRef = db.collection("ai-chats").doc();
-    await userMessageRef.set({
+    await db.collection("ai-chats").doc().set({
       userId: userId,
       sender: "user",
       text: message,
       timestamp: now,
     });
 
-    const aiMessageRef = db.collection("ai-chats").doc();
-    await aiMessageRef.set({
+    await db.collection("ai-chats").doc().set({
       userId: userId,
       sender: "ai",
       text: response.reply,
-      mood: response.mood, // Add the new mood field
+      mood: response.mood,
       timestamp: now,
     });
 
-    // UNCHANGED: Send response to frontend
     return res.status(200).json(response);
 
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("API Error:", err);
-    if (err.code === "auth/id-token-expired") {
-      return res.status(401).json({ error: "Token expired, please refresh." });
+    
+    if (typeof err === 'object' && err !== null && 'code' in err) {
+      const firebaseError = err as { code: string };
+      if (firebaseError.code === "auth/id-token-expired") {
+        return res.status(401).json({ error: "Token expired, please refresh." });
+      }
     }
+    
+    // Also log the error details if it's a Google AI error
+    if (typeof err === 'object' && err !== null && 'message' in err) {
+        console.error("Error Message:", (err as Error).message);
+    }
+    
     res.status(500).json({ error: "Internal server error" });
   }
 }
