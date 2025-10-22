@@ -32,12 +32,13 @@ const safetySettings = [
   },
 ];
 
+// --- MODIFIED ---
+// Using "gemini-pro" as it's the most stable, standard model
+// and does not support the "responseMimeType" config.
 const model = genAI.getGenerativeModel({
-  model: "gemini-1.5-flash", 
+  model: "gemini-pro", 
   safetySettings,
-  generationConfig: {
-    responseMimeType: "application/json",
-  },
+  // generationConfig was removed
 });
 
 // --- FIREBASE ADMIN SETUP ---
@@ -65,7 +66,7 @@ respond warmly and naturally with one short empathetic reply.
 Do not mention “I detect your mood”. 
 If distress/self-harm is mentioned, remind them to reach a counselor or emergency help.
 
-You MUST return ONLY a valid JSON object matching this exact schema:
+You MUST return ONLY a valid JSON object matching this exact schema, with no other text:
 {"mood":"<oneword>","reply":"<short empathetic response>"}
 `;
 
@@ -111,17 +112,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     let response = { mood: "neutral", reply: "Sorry, I had trouble thinking." };
 
+    // Robust JSON parsing
     try {
-      response = JSON.parse(raw);
-    } catch (err) {
-      console.error("Gemini JSON parse fail:", err, raw);
       const jsonStart = raw.indexOf("{");
       const jsonEnd = raw.lastIndexOf("}");
+      
       if (jsonStart > -1 && jsonEnd > -1) {
-        response = JSON.parse(raw.slice(jsonStart, jsonEnd + 1));
+        const jsonString = raw.slice(jsonStart, jsonEnd + 1);
+        response = JSON.parse(jsonString);
       } else {
-        response.reply = raw.trim();
+        console.error("No JSON found in Gemini response:", raw);
+        response.reply = raw.trim().replace(/"/g, '');
       }
+    } catch (err) {
+      console.error("Gemini JSON parse fail:", err, raw);
+      response.reply = raw.trim().replace(/"/g, '');
     }
 
     // Firestore save logic
@@ -154,7 +159,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (typeof err === 'object' && err !== null && 'code' in err) {
       const firebaseError = err as { code: string };
       if (firebaseError.code === "auth/id-token-expired") {
-        return res.status(401).json({ error: "Token expired, please refresh." });
+        return res.status(4G).json({ error: "Token expired, please refresh." });
       }
     }
     
