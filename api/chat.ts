@@ -1,10 +1,10 @@
 // /api/chat.ts
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import {
-  VertexAI, // Import VertexAI instead of GoogleGenerativeAI
+  VertexAI,
   HarmCategory,
   HarmBlockThreshold,
-} from "@google-cloud/vertexai"; // Use the Vertex AI specific package
+} from "@google-cloud/vertexai";
 import admin from "firebase-admin";
 
 // --- START OF NEW SETUP CODE ---
@@ -12,18 +12,25 @@ import admin from "firebase-admin";
 // Verify Project ID exists
 if (!process.env.GOOGLE_CLOUD_PROJECT_ID) {
   console.error('GOOGLE_CLOUD_PROJECT_ID is not set');
-  // We'll let the handler fail if this happens
+}
+if (!process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
+  console.error('GOOGLE_APPLICATION_CREDENTIALS_JSON is not set');
 }
 
-// Initialize Vertex AI
-// NOTE: Vertex AI uses Application Default Credentials (ADC) or Service Accounts
-// It does NOT use API keys directly in production for security reasons.
-// However, the `@google-cloud/vertexai` library might still pick up ADC
-// if your Firebase Admin setup provides them implicitly.
-// We also need to specify the project and location.
+let credentials;
+try {
+  // Parse the JSON credentials from the environment variable
+  credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON!);
+} catch (e) {
+  console.error("Failed to parse GOOGLE_APPLICATION_CREDENTIALS_JSON:", e);
+  // Handle error appropriately, maybe exit or use default auth path
+}
+
+// Initialize Vertex AI using the parsed credentials
 const vertex_ai = new VertexAI({
   project: process.env.GOOGLE_CLOUD_PROJECT_ID!,
   location: 'us-central1', // Or your preferred region
+  credentials, // Pass the parsed credentials directly
 });
 
 const safetySettings = [
@@ -33,9 +40,8 @@ const safetySettings = [
   { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
 ];
 
-// Get the generative model instance via Vertex AI
 const modelInstance = vertex_ai.getGenerativeModel({
-  model: "gemini-1.5-flash-001", // Using a specific Vertex AI model name
+  model: "gemini-1.5-flash-001", // Specific Vertex AI model name
   safetySettings,
   generationConfig: {
      responseMimeType: "application/json",
@@ -45,7 +51,7 @@ const modelInstance = vertex_ai.getGenerativeModel({
 // --- END OF NEW SETUP CODE ---
 
 
-// --- FIREBASE ADMIN SETUP (UNCHANGED) ---
+// --- FIREBASE ADMIN SETUP (UNCHANGED, BUT ENSURE KEYS ARE CORRECT) ---
 try {
   if (!admin.apps.length) {
     admin.initializeApp({
@@ -76,9 +82,9 @@ You MUST return ONLY a valid JSON object matching this exact schema:
 `;
 
 
-// --- HANDLER FUNCTION ---
+// --- HANDLER FUNCTION (UNCHANGED LOGIC, ADDED LOGS) ---
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  console.log("API Handler started"); // Add log
+  console.log("API Handler started");
   if (req.method !== "POST") {
       console.log("Method not allowed:", req.method);
       return res.status(405).send("Only POST allowed");
@@ -133,18 +139,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     `;
     console.log("Constructed full prompt for Vertex AI.");
 
-    // --- MODIFIED: Call Vertex AI ---
     console.log("Calling Vertex AI generateContent...");
     const result = await modelInstance.generateContent({contents: [{role: 'user', parts: [{text: fullPrompt}]}]});
 
-    // Access response differently for Vertex AI SDK
     if (!result.response.candidates?.[0]?.content?.parts?.[0]?.text) {
         console.error("Unexpected Vertex AI response structure:", JSON.stringify(result.response, null, 2));
         throw new Error("Failed to get text from Vertex AI response");
     }
     const raw = result.response.candidates[0].content.parts[0].text;
     console.log("Received raw response from Vertex AI:", raw);
-    // --- END MODIFIED ---
 
     let response = { mood: "neutral", reply: "Sorry, I had trouble thinking." };
 
@@ -152,12 +155,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       response = JSON.parse(raw);
     } catch (err) {
       console.error("Vertex AI JSON parse fail:", err, raw);
-      // Fallback
       response.reply = raw.trim();
     }
     console.log("Parsed AI response:", response);
 
-    // Firestore save logic (UNCHANGED)
     const now = admin.firestore.FieldValue.serverTimestamp();
     console.log("Saving messages to Firestore...");
     await db.collection("ai-chats").doc().set({ userId, sender: "user", text: message, timestamp: now });
@@ -167,9 +168,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json(response);
 
   } catch (err: unknown) {
-    console.error("API Error:", err); // Log the full error
+    console.error("API Error:", err);
 
-    // More detailed error logging
     if (err instanceof Error) {
         console.error("Error Message:", err.message);
         console.error("Error Stack:", err.stack);
