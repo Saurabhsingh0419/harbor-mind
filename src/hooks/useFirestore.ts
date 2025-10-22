@@ -1,5 +1,6 @@
 // src/hooks/useFirestore.ts
 import { useState, useEffect } from 'react';
+import { Timestamp } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { 
   addChatMessage, 
@@ -56,7 +57,7 @@ export const useChatMessages = (sessionId?: string) => {
         userId,
         sender,
         text,
-        timestamp: new Date() as any, // Will be converted to Timestamp in service
+  timestamp: Timestamp.now(),
         sessionId
       };
       
@@ -122,8 +123,8 @@ export const useChatSessions = () => {
       const newSession: ChatSession = {
         id: sessionId,
         userId,
-        createdAt: new Date() as any,
-        lastMessageAt: new Date() as any,
+  createdAt: Timestamp.now(),
+  lastMessageAt: Timestamp.now(),
         messageCount: 0,
         title: title || 'New Chat'
       };
