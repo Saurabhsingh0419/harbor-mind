@@ -21,6 +21,8 @@ const DashboardScreen = () => {
     } else if (feature === "AI Companion") {
       console.log("Navigating to AI Companion..."); // Debug log
       navigate("/ai-companion");
+    }  else if (feature === "Get Support") {
+      navigate("/support");
     } else {
       console.log(`${feature} clicked - no navigation defined`);
     }
