@@ -33,8 +33,24 @@ export interface ChatSession {
 }
 
 // Firestore collections
-const CHAT_MESSAGES_COLLECTION = 'chatMessages';
+const CHAT_MESSAGES_COLLECTION = 'ai-chats';
 const CHAT_SESSIONS_COLLECTION = 'chatSessions';
+
+// Helper: normalize Firestore Timestamp, Date, number or string into a Date
+const parseTimestamp = (v?: unknown): Date => {
+  if (!v) return new Date(NaN);
+  // Firestore Timestamp has toDate()
+  if (
+    typeof v === 'object' &&
+    v !== null &&
+    'toDate' in v &&
+    typeof (v as { toDate?: unknown }).toDate === 'function'
+  ) {
+    return (v as { toDate: () => Date }).toDate();
+  }
+  if (v instanceof Date) return v;
+  return new Date(v as string | number);
+};
 
 /**
  * Add a new chat message to Firestore
@@ -51,7 +67,7 @@ export const addChatMessage = async (
       sender,
       text,
       timestamp: Timestamp.now(),
-      sessionId: sessionId || null
+      sessionId: sessionId ?? undefined
     };
 
     const docRef = await addDoc(collection(db, CHAT_MESSAGES_COLLECTION), messageData);
@@ -101,8 +117,8 @@ export const getChatMessages = async (
 
     // Sort messages by timestamp in JavaScript (oldest first)
     messages.sort((a, b) => {
-      const timestampA = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.timestamp);
-      const timestampB = b.timestamp?.toDate ? b.timestamp.toDate() : new Date(b.timestamp);
+      const timestampA = parseTimestamp(a.timestamp);
+      const timestampB = parseTimestamp(b.timestamp);
       return timestampA.getTime() - timestampB.getTime();
     });
 
@@ -158,8 +174,8 @@ export const getChatSessions = async (userId: string): Promise<ChatSession[]> =>
 
     // Sort sessions by lastMessageAt in JavaScript (newest first)
     sessions.sort((a, b) => {
-      const timestampA = a.lastMessageAt?.toDate ? a.lastMessageAt.toDate() : new Date(a.lastMessageAt);
-      const timestampB = b.lastMessageAt?.toDate ? b.lastMessageAt.toDate() : new Date(b.lastMessageAt);
+      const timestampA = parseTimestamp(a.lastMessageAt);
+      const timestampB = parseTimestamp(b.lastMessageAt);
       return timestampB.getTime() - timestampA.getTime();
     });
 

@@ -122,13 +122,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
         decodedToken = await admin.auth().verifyIdToken(token);
         console.log("Token verified successfully for UID:", decodedToken.uid);
-    } catch (authError) {
-        console.error("Token verification failed:", authError);
-        if (authError instanceof Error && (authError as any).code === 'auth/id-token-expired') {
-            return res.status(401).json({ error: "Token expired, please refresh." });
-        }
-        return res.status(401).json({ error: "Invalid token" });
+  } catch (authError) {
+    console.error("Token verification failed:", authError);
+    // authError may include a `code` property from Firebase; narrow safely
+    if (authError instanceof Error) {
+      const maybe = authError as Error & { code?: string };
+      if (maybe.code === 'auth/id-token-expired') {
+        return res.status(401).json({ error: "Token expired, please refresh." });
+      }
     }
+    return res.status(401).json({ error: "Invalid token" });
+  }
     const userId = decodedToken.uid;
 
     const { message } = req.body;

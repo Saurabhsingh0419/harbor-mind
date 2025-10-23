@@ -137,7 +137,12 @@ const AIChatScreen = () => {
   };
 
   const isTimestampLike = (v: unknown): v is { toDate: () => Date } => {
-    return typeof v === 'object' && v !== null && 'toDate' in v && typeof (v as any).toDate === 'function';
+    return (
+      typeof v === 'object' &&
+      v !== null &&
+      'toDate' in v &&
+      typeof (v as { toDate?: unknown }).toDate === 'function'
+    );
   };
 
   const toDate = (t?: { toDate?: () => Date } | string | number | Date): Date => {

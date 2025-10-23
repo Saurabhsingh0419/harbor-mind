@@ -1,86 +1,111 @@
 // src/hooks/useFirestore.ts
 import { useState, useEffect } from 'react';
-import { Timestamp } from 'firebase/firestore';
-import { useAuth } from '../context/AuthContext';
 import { 
-  addChatMessage, 
-  getChatMessages, 
+  Timestamp,
+  collection, 
+  query, 
+  orderBy, 
+  limit, 
+  where,
+  onSnapshot, // Import the real-time listener
+  QuerySnapshot,
+  DocumentData
+} from 'firebase/firestore';
+import { useAuth } from '../context/AuthContext';
+import { db } from '../firebaseConfig'; // Import the db instance
+import { 
+  // We still use these types and services for sessions
   createChatSession,
   getChatSessions,
-  ChatMessage,
+  ChatMessage, // Keep this type
   ChatSession
 } from '../services/firestoreService';
 
 /**
- * Hook for managing chat messages
+ * Hook for managing chat messages IN REAL-TIME
  */
 export const useChatMessages = (sessionId?: string) => {
   const { userId } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Load messages when userId or sessionId changes
   useEffect(() => {
-    if (!userId) return;
-
-    const loadMessages = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const fetchedMessages = await getChatMessages(userId, sessionId);
-        setMessages(fetchedMessages);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load messages');
-        console.error('Error loading messages:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadMessages();
-  }, [userId, sessionId]);
-
-  const addMessage = async (text: string, sender: 'user' | 'ai') => {
     if (!userId) {
-      setError('User not authenticated');
+      setLoading(false);
+      setMessages([]); // Clear messages if no user
       return;
     }
 
-    try {
-      setError(null);
-      const messageId = await addChatMessage(userId, text, sender, sessionId);
-      
-      // Add the new message to local state
-      const newMessage: ChatMessage = {
-        id: messageId,
-        userId,
-        sender,
-        text,
-  timestamp: Timestamp.now(),
-        sessionId
-      };
-      
-      setMessages(prev => [...prev, newMessage]);
-      return messageId;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to add message');
-      console.error('Error adding message:', err);
-      throw err;
+    setLoading(true);
+    setError(null);
+    console.log(`Setting up real-time listener for userId: ${userId}`);
+
+    // Create the query.
+    // NOTE: This requires the same Firestore index you created for the backend:
+    // Collection: ai-chats, Fields: userId (asc), timestamp (asc)
+    let q = query(
+      collection(db, "ai-chats"), // <-- CORRECTED COLLECTION NAME
+      where("userId", "==", userId),
+      orderBy("timestamp", "asc") // Order by time so new messages appear at the bottom
+    );
+
+    // If a sessionId is provided, add it to the query
+    if (sessionId) {
+      q = query(
+        collection(db, "ai-chats"), 
+        where("userId", "==", userId),
+        where("sessionId", "==", sessionId), // Add session filter
+        orderBy("timestamp", "asc")
+      );
     }
-  };
+
+    // Use onSnapshot for real-time updates
+    const unsubscribe = onSnapshot(q, 
+      (querySnapshot: QuerySnapshot<DocumentData>) => {
+        const fetchedMessages: ChatMessage[] = [];
+        querySnapshot.forEach((doc) => {
+          fetchedMessages.push({
+            id: doc.id,
+            ...doc.data()
+          } as ChatMessage);
+        });
+        setMessages(fetchedMessages);
+        setLoading(false);
+        console.log(`Snapshot received, ${fetchedMessages.length} messages loaded.`);
+      },
+      (err) => {
+        console.error('Error with Firestore snapshot:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load messages');
+        setLoading(false);
+      }
+    );
+
+    // Cleanup listener on unmount
+    return () => {
+      console.log("Cleaning up snapshot listener.");
+      unsubscribe();
+    };
+    
+  }, [userId, sessionId]); // Re-run if user or session changes
+
+  // The 'addMessage' function from the original hook is no longer needed
+  // because the backend handles all message creation, and the snapshot
+  // listener handles updating the local state.
 
   return {
     messages,
     loading,
     error,
-    addMessage,
     setMessages
+    // addMessage function is removed
   };
 };
 
 /**
  * Hook for managing chat sessions
+ * (This can remain as-is for now, as it doesn't need to be real-time)
  */
 export const useChatSessions = () => {
   const { userId } = useAuth();
@@ -88,7 +113,6 @@ export const useChatSessions = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Load sessions when userId changes
   useEffect(() => {
     if (!userId) return;
 
@@ -118,17 +142,14 @@ export const useChatSessions = () => {
     try {
       setError(null);
       const sessionId = await createChatSession(userId, title);
-      
-      // Add the new session to local state
       const newSession: ChatSession = {
         id: sessionId,
         userId,
-  createdAt: Timestamp.now(),
-  lastMessageAt: Timestamp.now(),
+        createdAt: Timestamp.now(),
+        lastMessageAt: Timestamp.now(),
         messageCount: 0,
         title: title || 'New Chat'
       };
-      
       setSessions(prev => [newSession, ...prev]);
       return sessionId;
     } catch (err) {
@@ -148,37 +169,22 @@ export const useChatSessions = () => {
 
 /**
  * Hook for real-time chat functionality
+ * This hook now just passes through the real-time data from useChatMessages
+ * and provides the 'isSending' state for the UI.
  */
 export const useRealtimeChat = (sessionId?: string) => {
-  const { messages, loading, error, addMessage } = useChatMessages(sessionId);
-  const [isSending, setIsSending] = useState(false);
-
-  const sendMessage = async (text: string) => {
-    if (!text.trim() || isSending) return;
-
-    setIsSending(true);
-    try {
-      // Add user message
-      await addMessage(text, 'user');
-      
-      // Simulate AI response (replace with actual AI integration)
-      setTimeout(async () => {
-        const aiResponse = `I understand you said: "${text}". This is a placeholder response. In a real implementation, this would connect to your AI service.`;
-        await addMessage(aiResponse, 'ai');
-        setIsSending(false);
-      }, 1000);
-      
-    } catch (err) {
-      console.error('Error sending message:', err);
-      setIsSending(false);
-    }
-  };
+  const { messages, loading, error } = useChatMessages(sessionId);
+  
+  // AIChatScreen.tsx manages its own 'isSending' state, 
+  // so we don't need to provide it from here.
+  // We also don't provide 'sendMessage' because AIChatScreen.tsx
+  // has its own 'handleSendMessage' that calls the backend API.
 
   return {
     messages,
     loading,
     error,
-    isSending,
-    sendMessage
+    isSending: false, // This is now controlled by AIChatScreen.tsx
+    sendMessage: async () => { console.warn("useRealtimeChat.sendMessage is deprecated. Use handleSendMessage in AIChatScreen."); }
   };
 };
