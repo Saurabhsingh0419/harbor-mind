@@ -65,8 +65,7 @@ console.log(`Generative model instance created for model: ${modelInstance.model}
 // --- END OF EXPLICIT VERTEX AI SETUP ---
 
 
-// --- ROBUST FIREBASE ADMIN SETUP (UNCHANGED from previous correct version) ---
-// ... (Your existing robust Firebase Admin setup code remains here) ...
+// --- ROBUST FIREBASE ADMIN SETUP ---
 let db: admin.firestore.Firestore;
 try {
   // Check required Firebase environment variables first
@@ -103,13 +102,22 @@ if (!db) {
 // --- END OF ROBUST FIREBASE ADMIN SETUP ---
 
 
-// --- SYSTEM PROMPT (UNCHANGED) ---
-// ... (Keep existing system prompt) ...
+// --- SYSTEM PROMPT ---  <<<<<<<<<<<<<<<<<<< ENSURE THIS IS PRESENT >>>>>>>>>>>>>>>>>>>>
+const SYSTEM_PROMPT = `
+You are “Safe Harbor AI” — an empathetic student companion for mental well-being.
+Detect the user's mood (sad, anxious, angry, calm, happy, lonely, neutral) from their message,
+respond warmly and naturally with one short empathetic reply.
+
+Do not mention “I detect your mood”.
+If distress/self-harm is mentioned, remind them to reach a counselor or emergency help.
+
+You MUST return ONLY a valid JSON object matching this exact schema:
+{"mood":"<oneword>","reply":"<short empathetic response>"}
+`;
 
 
-// --- HANDLER FUNCTION (UNCHANGED) ---
+// --- HANDLER FUNCTION ---
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-    // ... (Keep existing handler function code) ...
      console.log("API Handler started");
 
   // Ensure db is available
@@ -165,6 +173,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .map((m: admin.firestore.DocumentData) => `${m.sender === "user" ? "User" : "AI"}: ${m.text}`)
       .join("\n");
 
+    // --- THIS IS WHERE SYSTEM_PROMPT IS USED --- <<<<<<<<<<<<<<<<<
     const fullPrompt = `
     ${SYSTEM_PROMPT}
 
@@ -176,7 +185,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.log("Constructed full prompt for Vertex AI.");
 
     console.log("Calling Vertex AI generateContent...");
-    // Use the modelInstance created from VertexAI
     const result = await modelInstance.generateContent({contents: [{role: 'user', parts: [{text: fullPrompt}]}]});
 
     if (!result.response.candidates?.[0]?.content?.parts?.[0]?.text) {
@@ -198,7 +206,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const now = admin.firestore.FieldValue.serverTimestamp();
     console.log("Saving messages to Firestore...");
-    // Use the db instance initialized earlier
     await db.collection("ai-chats").doc().set({ userId, sender: "user", text: message, timestamp: now });
     await db.collection("ai-chats").doc().set({ userId, sender: "ai", text: response.reply, mood: response.mood, timestamp: now });
     console.log("Messages saved successfully.");
@@ -213,8 +220,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         console.error("Error Type:", err.name);
         console.error("Error Message:", err.message);
         console.error("Error Stack:", err.stack);
-         // Check for specific Vertex AI permission denied errors
-        if (err.message.includes("permission") || err.message.includes("PermissionDenied")) {
+         if (err.message.includes("permission") || err.message.includes("PermissionDenied")) {
              console.error(">>> Vertex AI Permission Denied! Check IAM role for the service account used by Vertex AI. <<<");
         }
          if (err.message.includes("authenticate")) {
