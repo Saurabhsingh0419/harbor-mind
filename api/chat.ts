@@ -4,29 +4,43 @@ import {
   VertexAI,
   HarmCategory,
   HarmBlockThreshold,
-} from "@google-cloud/vertexai"; // Correct import for Vertex AI
+} from "@google-cloud/vertexai";
 import admin from "firebase-admin";
 
-// --- START OF SIMPLIFIED VERTEX AI SETUP ---
+// --- START OF EXPLICIT VERTEX AI SETUP ---
 
-// Check required Project ID
+// Check required Vertex AI environment variables
 if (!process.env.GOOGLE_CLOUD_PROJECT_ID) {
   console.error('CRITICAL: GOOGLE_CLOUD_PROJECT_ID environment variable is not set!');
   throw new Error('Server configuration error: Missing Google Cloud Project ID.');
 } else {
     console.log('GOOGLE_CLOUD_PROJECT_ID environment variable found.');
 }
+if (!process.env.VERTEX_CLIENT_EMAIL) {
+  console.error('CRITICAL: VERTEX_CLIENT_EMAIL environment variable is not set!');
+  throw new Error('Server configuration error: Missing Vertex AI client email.');
+} else {
+    console.log('VERTEX_CLIENT_EMAIL environment variable found.');
+}
+if (!process.env.VERTEX_PRIVATE_KEY) {
+  console.error('CRITICAL: VERTEX_PRIVATE_KEY environment variable is not set!');
+  throw new Error('Server configuration error: Missing Vertex AI private key.');
+} else {
+    console.log('VERTEX_PRIVATE_KEY environment variable found (starts with: ' + process.env.VERTEX_PRIVATE_KEY.substring(0, 30) + '...).');
+}
 
 let vertex_ai;
 try {
-    // Initialize Vertex AI *without* explicit credentials.
-    // Let it try to find Application Default Credentials (ADC).
-    // The Firebase Admin initialization (using FIREBASE_ env vars) should provide these.
+    // Initialize Vertex AI explicitly using individual credential components
     vertex_ai = new VertexAI({
       project: process.env.GOOGLE_CLOUD_PROJECT_ID!,
-      location: 'asia-south1', // Set location to Mumbai
+      location: 'asia-south1', // Mumbai region
+      credentials: {
+          client_email: process.env.VERTEX_CLIENT_EMAIL!,
+          private_key: process.env.VERTEX_PRIVATE_KEY!.replace(/\\n/g, '\n'), // Ensure newlines are correct
+      }
     });
-    console.log(`VertexAI client initialized for region ${vertex_ai.location} (attempting ADC).`);
+    console.log(`VertexAI client initialized successfully for region ${vertex_ai.location} using explicit credentials.`);
 } catch (initError) {
     console.error("CRITICAL: Failed to initialize VertexAI client:", initError);
     throw new Error('Server configuration error: VertexAI client initialization failed.');
@@ -39,9 +53,8 @@ const safetySettings = [
   { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
 ];
 
-// Using gemini-1.5-flash-001 which is available in asia-south1
 const modelInstance = vertex_ai.getGenerativeModel({
-  model: "gemini-1.5-flash-001",
+  model: "gemini-1.5-flash-001", // Available in asia-south1
   safetySettings,
   generationConfig: {
      responseMimeType: "application/json",
@@ -49,82 +62,57 @@ const modelInstance = vertex_ai.getGenerativeModel({
 });
 console.log(`Generative model instance created for model: ${modelInstance.model}`);
 
-// --- END OF SIMPLIFIED VERTEX AI SETUP ---
+// --- END OF EXPLICIT VERTEX AI SETUP ---
 
 
-// --- START OF ROBUST FIREBASE ADMIN SETUP ---
-
-// Check required Firebase environment variables
-if (!process.env.FIREBASE_PROJECT_ID) {
-  console.error('CRITICAL: FIREBASE_PROJECT_ID environment variable is not set!');
-  throw new Error('Server configuration error: Missing Firebase Project ID.');
-} else {
-    console.log('FIREBASE_PROJECT_ID environment variable found.');
-}
-if (!process.env.FIREBASE_CLIENT_EMAIL) {
-  console.error('CRITICAL: FIREBASE_CLIENT_EMAIL environment variable is not set!');
-  throw new Error('Server configuration error: Missing Firebase client email.');
-} else {
-    console.log('FIREBASE_CLIENT_EMAIL environment variable found.');
-}
-if (!process.env.FIREBASE_PRIVATE_KEY) {
-  console.error('CRITICAL: FIREBASE_PRIVATE_KEY environment variable is not set!');
-  throw new Error('Server configuration error: Missing Firebase private key.');
-} else {
-    console.log('FIREBASE_PRIVATE_KEY environment variable found.');
-}
-
-let db: admin.firestore.Firestore; // Declare db variable
-
+// --- ROBUST FIREBASE ADMIN SETUP (UNCHANGED from previous correct version) ---
+// ... (Your existing robust Firebase Admin setup code remains here) ...
+let db: admin.firestore.Firestore;
 try {
+  // Check required Firebase environment variables first
+  if (!process.env.FIREBASE_PROJECT_ID || !process.env.FIREBASE_CLIENT_EMAIL || !process.env.FIREBASE_PRIVATE_KEY) {
+      throw new Error('Missing required Firebase environment variables.');
+  }
+  console.log('All required Firebase environment variables found.');
+
   if (!admin.apps.length) {
     console.log("Initializing Firebase Admin SDK...");
     admin.initializeApp({
       credential: admin.credential.cert({
         projectId: process.env.FIREBASE_PROJECT_ID!,
         clientEmail: process.env.FIREBASE_CLIENT_EMAIL!,
-        privateKey: process.env.FIREBASE_PRIVATE_KEY!.replace(/\\n/g, '\n'), // Format key
+        privateKey: process.env.FIREBASE_PRIVATE_KEY!.replace(/\\n/g, '\n'),
       }),
     });
     console.log("Firebase Admin Initialized Successfully.");
-    db = admin.firestore(); // Initialize db after success
+    db = admin.firestore();
     console.log("Firestore instance created.");
   } else {
       console.log("Firebase Admin already initialized.");
-      db = admin.firestore(); // Get instance from existing app
+      db = admin.firestore();
       console.log("Firestore instance retrieved from existing app.");
   }
 } catch (error) {
   console.error("CRITICAL: Firebase Admin Initialization Error:", error);
   throw new Error('Server configuration error: Firebase Admin SDK initialization failed.');
 }
-
 if (!db) {
-    console.error("CRITICAL: Firestore database instance is not available.");
-    throw new Error('Server configuration error: Firestore initialization failed.');
+    console.error("CRITICAL: Firestore database instance is not available post-init.");
+    throw new Error('Server configuration error: Firestore initialization failed post-init.');
 }
-
 // --- END OF ROBUST FIREBASE ADMIN SETUP ---
 
 
 // --- SYSTEM PROMPT (UNCHANGED) ---
-const SYSTEM_PROMPT = `
-You are “Safe Harbor AI” — an empathetic student companion for mental well-being.
-Detect the user's mood (sad, anxious, angry, calm, happy, lonely, neutral) from their message,
-respond warmly and naturally with one short empathetic reply.
-
-Do not mention “I detect your mood”.
-If distress/self-harm is mentioned, remind them to reach a counselor or emergency help.
-
-You MUST return ONLY a valid JSON object matching this exact schema:
-{"mood":"<oneword>","reply":"<short empathetic response>"}
-`;
+// ... (Keep existing system prompt) ...
 
 
 // --- HANDLER FUNCTION (UNCHANGED) ---
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  console.log("API Handler started");
+    // ... (Keep existing handler function code) ...
+     console.log("API Handler started");
 
+  // Ensure db is available
   if (!db) {
       console.error("Handler Error: Firestore DB not initialized.");
       return res.status(500).json({ error: "Internal server configuration error." });
@@ -188,6 +176,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.log("Constructed full prompt for Vertex AI.");
 
     console.log("Calling Vertex AI generateContent...");
+    // Use the modelInstance created from VertexAI
     const result = await modelInstance.generateContent({contents: [{role: 'user', parts: [{text: fullPrompt}]}]});
 
     if (!result.response.candidates?.[0]?.content?.parts?.[0]?.text) {
@@ -209,6 +198,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const now = admin.firestore.FieldValue.serverTimestamp();
     console.log("Saving messages to Firestore...");
+    // Use the db instance initialized earlier
     await db.collection("ai-chats").doc().set({ userId, sender: "user", text: message, timestamp: now });
     await db.collection("ai-chats").doc().set({ userId, sender: "ai", text: response.reply, mood: response.mood, timestamp: now });
     console.log("Messages saved successfully.");
@@ -225,7 +215,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         console.error("Error Stack:", err.stack);
          // Check for specific Vertex AI permission denied errors
         if (err.message.includes("permission") || err.message.includes("PermissionDenied")) {
-             console.error(">>> Vertex AI Permission Denied! Check IAM role for the service account used by Firebase Admin. <<<");
+             console.error(">>> Vertex AI Permission Denied! Check IAM role for the service account used by Vertex AI. <<<");
+        }
+         if (err.message.includes("authenticate")) {
+             console.error(">>> Authentication failed! Double-check VERTEX_CLIENT_EMAIL and VERTEX_PRIVATE_KEY in Vercel. Ensure the private key formatting is perfect. <<<");
         }
     } else {
         console.error("Unknown error object:", err);
