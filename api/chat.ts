@@ -51,8 +51,9 @@ const safetySettings = [
   { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
 ];
 
+
 const modelInstance = vertexAI.getGenerativeModel({
-  model: "gemini-1.5-flash-001",
+  model: "gemini-1.0-pro", // ✅ Works in asia-south1
   safetySettings,
   generationConfig: {
     responseMimeType: "application/json",
@@ -60,6 +61,8 @@ const modelInstance = vertexAI.getGenerativeModel({
     maxOutputTokens: 1024,
   },
 });
+
+console.log(`Model initialized: gemini-1.0-pro in asia-south1`);
 
 // Initialize Firebase Admin
 let db: admin.firestore.Firestore;
