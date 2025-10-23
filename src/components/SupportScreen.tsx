@@ -14,17 +14,17 @@ const SupportScreen = () => {
   // Mock counselor data
   const counselors = [
     {
-      name: "Dr. Sarah Chen",
+      name: "Dr. XYZ",
       specialty: "Anxiety & Academic Stress",
       image: "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=400&h=400&fit=crop&crop=face"
     },
     {
-      name: "Dr. Michael Torres",
+      name: "Dr. XYZA",
       specialty: "Depression & Life Transitions", 
       image: "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400&h=400&fit=crop&crop=face"
     },
     {
-      name: "Dr. Emily Rodriguez",
+      name: "Dr. XYZAB",
       specialty: "Relationship & Social Issues",
       image: "https://images.unsplash.com/photo-1594824720863-4670a67817e8?w=400&h=400&fit=crop&crop=face"
     }
@@ -68,7 +68,7 @@ const SupportScreen = () => {
             </Button>
             
             <div className="mt-4 text-sm text-muted-foreground">
-              Crisis Hotline: 988 (Suicide & Crisis Lifeline)
+              Crisis Hotline: 14416 (Suicide & Crisis Lifeline)
             </div>
           </div>
         </div>

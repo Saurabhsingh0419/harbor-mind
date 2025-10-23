@@ -5,11 +5,11 @@ import {
   collection, 
   query, 
   orderBy, 
-  limit, 
   where,
   onSnapshot, // Import the real-time listener
   QuerySnapshot,
-  DocumentData
+  DocumentData,
+  QueryDocumentSnapshot // Import this type
 } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebaseConfig'; // Import the db instance
@@ -17,6 +17,7 @@ import {
   // We still use these types and services for sessions
   createChatSession,
   getChatSessions,
+  addChatMessage, 
   ChatMessage, // Keep this type
   ChatSession
 } from '../services/firestoreService';
@@ -30,7 +31,6 @@ export const useChatMessages = (sessionId?: string) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Load messages when userId or sessionId changes
   useEffect(() => {
     if (!userId) {
       setLoading(false);
@@ -43,16 +43,17 @@ export const useChatMessages = (sessionId?: string) => {
     console.log(`Setting up real-time listener for userId: ${userId}`);
 
     // Create the query.
-    // NOTE: This requires the same Firestore index you created for the backend:
-    // Collection: ai-chats, Fields: userId (asc), timestamp (asc)
     let q = query(
-      collection(db, "ai-chats"), // <-- CORRECTED COLLECTION NAME
+      collection(db, "ai-chats"), // <-- Using the correct 'ai-chats' collection
       where("userId", "==", userId),
       orderBy("timestamp", "asc") // Order by time so new messages appear at the bottom
     );
 
     // If a sessionId is provided, add it to the query
     if (sessionId) {
+      // NOTE: This query will require a composite index in Firestore
+      // (ai-chats, userId ASC, sessionId ASC, timestamp ASC)
+      // The console log error will provide a link to create it.
       q = query(
         collection(db, "ai-chats"), 
         where("userId", "==", userId),
@@ -65,7 +66,7 @@ export const useChatMessages = (sessionId?: string) => {
     const unsubscribe = onSnapshot(q, 
       (querySnapshot: QuerySnapshot<DocumentData>) => {
         const fetchedMessages: ChatMessage[] = [];
-        querySnapshot.forEach((doc) => {
+        querySnapshot.forEach((doc: QueryDocumentSnapshot<DocumentData>) => {
           fetchedMessages.push({
             id: doc.id,
             ...doc.data()
@@ -90,22 +91,31 @@ export const useChatMessages = (sessionId?: string) => {
     
   }, [userId, sessionId]); // Re-run if user or session changes
 
-  // The 'addMessage' function from the original hook is no longer needed
-  // because the backend handles all message creation, and the snapshot
-  // listener handles updating the local state.
+  // This function is kept for consistency, but AIChatScreen.tsx doesn't use it.
+  const addMessage = async (text: string, sender: 'user' | 'ai') => {
+    if (!userId) {
+      setError('User not authenticated');
+      return;
+    }
+    try {
+      await addChatMessage(userId, text, sender, sessionId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to add message');
+    }
+  };
+
 
   return {
     messages,
     loading,
     error,
+    addMessage,
     setMessages
-    // addMessage function is removed
   };
 };
 
 /**
- * Hook for managing chat sessions
- * (This can remain as-is for now, as it doesn't need to be real-time)
+ * Hook for managing chat sessions (Unchanged)
  */
 export const useChatSessions = () => {
   const { userId } = useAuth();
@@ -115,7 +125,6 @@ export const useChatSessions = () => {
 
   useEffect(() => {
     if (!userId) return;
-
     const loadSessions = async () => {
       setLoading(true);
       setError(null);
@@ -124,12 +133,10 @@ export const useChatSessions = () => {
         setSessions(fetchedSessions);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load sessions');
-        console.error('Error loading sessions:', err);
       } finally {
         setLoading(false);
       }
     };
-
     loadSessions();
   }, [userId]);
 
@@ -138,7 +145,6 @@ export const useChatSessions = () => {
       setError('User not authenticated');
       return null;
     }
-
     try {
       setError(null);
       const sessionId = await createChatSession(userId, title);
@@ -154,7 +160,6 @@ export const useChatSessions = () => {
       return sessionId;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create session');
-      console.error('Error creating session:', err);
       throw err;
     }
   };
@@ -169,22 +174,17 @@ export const useChatSessions = () => {
 
 /**
  * Hook for real-time chat functionality
- * This hook now just passes through the real-time data from useChatMessages
- * and provides the 'isSending' state for the UI.
+ * (This hook is now just a wrapper for useChatMessages)
  */
 export const useRealtimeChat = (sessionId?: string) => {
   const { messages, loading, error } = useChatMessages(sessionId);
   
-  // AIChatScreen.tsx manages its own 'isSending' state, 
-  // so we don't need to provide it from here.
-  // We also don't provide 'sendMessage' because AIChatScreen.tsx
-  // has its own 'handleSendMessage' that calls the backend API.
-
+  // AIChatScreen.tsx provides its own 'isSending' and 'sendMessage'
   return {
     messages,
     loading,
     error,
-    isSending: false, // This is now controlled by AIChatScreen.tsx
-    sendMessage: async () => { console.warn("useRealtimeChat.sendMessage is deprecated. Use handleSendMessage in AIChatScreen."); }
+    isSending: false, // This is controlled by AIChatScreen
+    sendMessage: async () => { console.warn("useRealtimeChat.sendMessage is deprecated."); }
   };
 };
