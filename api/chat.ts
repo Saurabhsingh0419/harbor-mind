@@ -1,6 +1,6 @@
 // /api/chat.ts
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { // Import from the standard Gemini SDK
+import {
   GoogleGenerativeAI,
   HarmCategory,
   HarmBlockThreshold,
@@ -9,7 +9,6 @@ import admin from "firebase-admin";
 
 // --- START OF GEMINI API SETUP ---
 
-// Check required Gemini API Key
 if (!process.env.GEMINI_API_KEY) {
   console.error('CRITICAL: GEMINI_API_KEY environment variable is not set!');
   throw new Error('Server configuration error: Missing Gemini API Key.');
@@ -19,7 +18,6 @@ if (!process.env.GEMINI_API_KEY) {
 
 let genAI;
 try {
-  // Initialize GoogleGenerativeAI with the API key
   genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
   console.log('GoogleGenerativeAI client initialized successfully.');
 } catch (initError) {
@@ -34,11 +32,14 @@ const safetySettings = [
   { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
 ];
 
-// Get the generative model instance using the standard 'gemini-pro' model
+// --- MODIFICATION: Use 'gemini-2.5-flash' and enable JSON mode ---
 const modelInstance = genAI.getGenerativeModel({
-  model: "gemini-pro", // Using the standard, widely available model
+  model: "gemini-2.5-flash", // Using the available stable model
   safetySettings,
-  // Removed generationConfig for responseMimeType as gemini-pro doesn't support it
+  generationConfig: {
+    responseMimeType: "application/json", // Re-enable JSON mode
+    temperature: 0.7,
+  },
 });
 console.log(`Generative model instance created for model: ${modelInstance.model}`);
 
@@ -91,7 +92,7 @@ respond warmly and naturally with one short empathetic reply.
 Do not mention “I detect your mood”.
 If distress/self-harm is mentioned, remind them to reach a counselor or emergency help.
 
-You MUST return ONLY a valid JSON object matching this exact schema, with no other text before or after it:
+You MUST return ONLY a valid JSON object matching this exact schema:
 {"mood":"<oneword>","reply":"<short empathetic response>"}
 `;
 
@@ -100,12 +101,8 @@ You MUST return ONLY a valid JSON object matching this exact schema, with no oth
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   console.log("API Handler started");
 
-  if (!db) {
-      console.error("Handler Error: Firestore DB not initialized.");
-      return res.status(500).json({ error: "Internal server configuration error." });
-  }
-  if (!modelInstance) {
-      console.error("Handler Error: Gemini Model not initialized.");
+  if (!db || !modelInstance) {
+      console.error("Handler Error: Firestore DB or Gemini Model not initialized.");
       return res.status(500).json({ error: "Internal server configuration error." });
   }
 
@@ -183,17 +180,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     let response = { mood: "neutral", reply: "Sorry, I had trouble thinking." };
     try {
-      // Robust JSON parsing needed as we didn't force JSON output
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/); // Find first occurrence of { ... }
-      if (jsonMatch && jsonMatch[0]) {
-        response = JSON.parse(jsonMatch[0]);
-      } else {
-        console.error("Manual JSON extraction failed: No JSON block found in response:", responseText);
-        response.reply = responseText.trim(); // Use raw text as fallback
-      }
+      // Should parse directly due to responseMimeType: "application/json"
+      response = JSON.parse(responseText);
     } catch (err) {
-      console.error("Gemini JSON parse fail:", err, responseText);
-      response.reply = responseText.trim(); // Use raw text as fallback
+      console.error("Gemini JSON parse fail (even with JSON mode):", err, responseText);
+      // Fallback just in case JSON mode failed
+      response.reply = responseText.trim();
     }
     console.log("Parsed AI response:", response);
 
@@ -217,7 +209,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (err.message.includes("API key not valid") || err.message.includes("API_KEY_INVALID")) {
              console.error(">>> Gemini API Key Error! Check GEMINI_API_KEY in Vercel. <<<");
         } else if (err.message.includes("is not found") && err.message.includes("models/")) {
-             console.error(`>>> Gemini Model Not Found! Used: "${modelInstance.model}". Check Google Cloud project permissions/API Key restrictions, or try another available model. <<<`);
+             console.error(`>>> Gemini Model Not Found! Used: "${modelInstance.model}". Check Google Cloud project permissions/API Key restrictions, or run the curl command again. <<<`);
         } else if (err.message.includes("permission") || err.message.includes("PermissionDenied")) {
              console.error(">>> Gemini API Permission Denied! Check Google Cloud project settings (API enabled?) & API key restrictions. <<<");
         } else if (err.message.includes(" Billing account ")) {
