@@ -34,16 +34,11 @@ const safetySettings = [
   { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
 ];
 
-// Get the generative model instance using a model compatible with the Gemini API (Generative Language API)
-// Using 'gemini-1.5-flash-latest' which supports JSON mode
+// Get the generative model instance using the standard 'gemini-pro' model
 const modelInstance = genAI.getGenerativeModel({
-  model: "gemini-1.5-flash-latest",
+  model: "gemini-pro", // Using the standard, widely available model
   safetySettings,
-  generationConfig: {
-    responseMimeType: "application/json",
-    temperature: 0.7, // Optional: Adjust creativity
-    // maxOutputTokens: 1024, // Optional: Limit response length
-  },
+  // Removed generationConfig for responseMimeType as gemini-pro doesn't support it
 });
 console.log(`Generative model instance created for model: ${modelInstance.model}`);
 
@@ -51,8 +46,8 @@ console.log(`Generative model instance created for model: ${modelInstance.model}
 
 
 // --- START OF ROBUST FIREBASE ADMIN SETUP ---
-// (Keep the robust Firebase Admin setup from previous steps)
 if (!process.env.FIREBASE_PROJECT_ID || !process.env.FIREBASE_CLIENT_EMAIL || !process.env.FIREBASE_PRIVATE_KEY) {
+    console.error('CRITICAL: Missing required Firebase environment variables.');
     throw new Error('Missing required Firebase environment variables.');
 }
 console.log('All required Firebase environment variables found.');
@@ -87,7 +82,7 @@ if (!db) {
 // --- END OF ROBUST FIREBASE ADMIN SETUP ---
 
 
-// --- SYSTEM PROMPT (UNCHANGED) ---
+// --- SYSTEM PROMPT ---
 const SYSTEM_PROMPT = `
 You are “Safe Harbor AI” — an empathetic student companion for mental well-being.
 Detect the user's mood (sad, anxious, angry, calm, happy, lonely, neutral) from their message,
@@ -96,7 +91,7 @@ respond warmly and naturally with one short empathetic reply.
 Do not mention “I detect your mood”.
 If distress/self-harm is mentioned, remind them to reach a counselor or emergency help.
 
-You MUST return ONLY a valid JSON object matching this exact schema:
+You MUST return ONLY a valid JSON object matching this exact schema, with no other text before or after it:
 {"mood":"<oneword>","reply":"<short empathetic response>"}
 `;
 
@@ -113,7 +108,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       console.error("Handler Error: Gemini Model not initialized.");
       return res.status(500).json({ error: "Internal server configuration error." });
   }
-
 
   if (req.method !== "POST") {
       console.log("Method not allowed:", req.method);
@@ -141,7 +135,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const userId = decodedToken.uid;
 
     const { message } = req.body;
-    if (!message?.trim()) { // Added trim check
+    if (!message?.trim()) {
         console.log("Bad Request: Missing or empty message");
         return res.status(400).json({ error: "Missing message" });
     }
@@ -173,14 +167,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.log("Constructed full prompt for Gemini.");
 
     console.log(`Calling Gemini generateContent with model ${modelInstance.model}...`);
-    // Call the standard Gemini API SDK
     const result = await modelInstance.generateContent(fullPrompt);
-    const generationResponse = result.response; // Get the response object
+    const generationResponse = result.response;
 
-    const responseText = generationResponse.text(); // Use the text() method
+    const responseText = generationResponse.text();
     if (!responseText) {
         console.error("Unexpected Gemini response structure:", JSON.stringify(generationResponse, null, 2));
-         // Check if it was blocked
         if (generationResponse.promptFeedback?.blockReason) {
             console.error("Response blocked due to:", generationResponse.promptFeedback.blockReason);
              return res.status(400).json({ error: `Request blocked by safety filters: ${generationResponse.promptFeedback.blockReason}` });
@@ -191,27 +183,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     let response = { mood: "neutral", reply: "Sorry, I had trouble thinking." };
     try {
-      response = JSON.parse(responseText); // Should work due to responseMimeType
-    } catch (err) {
-      console.error("Gemini JSON parse fail:", err, responseText);
-      // Fallback: try to extract JSON manually if wrapped
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        try {
-            response = JSON.parse(jsonMatch[0]);
-        } catch (innerErr) {
-            console.error("Manual JSON extraction failed:", innerErr);
-            response.reply = responseText.trim(); // Use raw text as fallback
-        }
+      // Robust JSON parsing needed as we didn't force JSON output
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/); // Find first occurrence of { ... }
+      if (jsonMatch && jsonMatch[0]) {
+        response = JSON.parse(jsonMatch[0]);
       } else {
+        console.error("Manual JSON extraction failed: No JSON block found in response:", responseText);
         response.reply = responseText.trim(); // Use raw text as fallback
       }
+    } catch (err) {
+      console.error("Gemini JSON parse fail:", err, responseText);
+      response.reply = responseText.trim(); // Use raw text as fallback
     }
     console.log("Parsed AI response:", response);
 
     const now = admin.firestore.FieldValue.serverTimestamp();
     console.log("Saving messages to Firestore...");
-    // Changed to addDoc for simplicity, ensures unique IDs
     await db.collection("ai-chats").add({ userId, sender: "user", text: message, timestamp: now });
     await db.collection("ai-chats").add({ userId, sender: "ai", text: response.reply, mood: response.mood, timestamp: now });
     console.log("Messages saved successfully.");
@@ -226,15 +213,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         console.error("Error Type:", err.name);
         console.error("Error Message:", err.message);
         console.error("Error Stack:", err.stack);
-        // Check for common Gemini API errors (like invalid key or model not found)
+        // Add specific checks for Gemini API errors
         if (err.message.includes("API key not valid") || err.message.includes("API_KEY_INVALID")) {
              console.error(">>> Gemini API Key Error! Check GEMINI_API_KEY in Vercel. <<<");
         } else if (err.message.includes("is not found") && err.message.includes("models/")) {
-             console.error(`>>> Gemini Model Not Found! Check model name used: "${modelInstance.model}" and project/API key permissions. <<<`);
+             console.error(`>>> Gemini Model Not Found! Used: "${modelInstance.model}". Check Google Cloud project permissions/API Key restrictions, or try another available model. <<<`);
         } else if (err.message.includes("permission") || err.message.includes("PermissionDenied")) {
-             console.error(">>> Gemini API Permission Denied! Check Google Cloud project settings and API key restrictions. <<<");
+             console.error(">>> Gemini API Permission Denied! Check Google Cloud project settings (API enabled?) & API key restrictions. <<<");
         } else if (err.message.includes(" Billing account ")) {
              console.error(">>> Gemini API Billing Error! Ensure billing is enabled on the Google Cloud project. <<<");
+        } else if (err.message.includes("RESOURCE_EXHAUSTED")) {
+            console.error(">>> Gemini API Rate Limit Exceeded! Check usage limits. <<<");
         }
 
     } else {
