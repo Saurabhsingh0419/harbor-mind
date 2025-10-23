@@ -9,6 +9,7 @@ import ResourceLibrary from "./pages/ResourceLibrary";
 import WellnessCheckin from "./pages/WellnessCheckin";
 import WellnessResults from "./pages/WellnessResults";
 import AIChatScreen from "./components/AIChatScreen";
+import SupportScreen from "./components/SupportScreen";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +27,7 @@ const App = () => (
             <Route path="/wellness-checkin" element={<WellnessCheckin />} />
             <Route path="/wellness-results" element={<WellnessResults />} />
             <Route path="/ai-companion" element={<AIChatScreen />} />
+          <Route path="/support" element={<SupportScreen />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
