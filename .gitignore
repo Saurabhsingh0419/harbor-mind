@@ -12,7 +12,7 @@ node_modules
 dist
 dist-ssr
 dist/
-
+google-cloud-sdk
 *.local
 
 # Editor directories and files
