@@ -38,20 +38,42 @@ const AIChatScreen = () => {
   const [inputValue, setInputValue] = useState('');
   const [isSending, setIsSending] = useState(false); 
   
-  const scrollAreaViewportRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null); // Renamed ref
   
   const synth = useRef(window.speechSynthesis);
 
-  // Auto-scroll to bottom when messages change
+  // --- NEW: useEffect to find and log available voices (Removed logs) ---
   useEffect(() => {
-    if (scrollAreaViewportRef.current) {
-      setTimeout(() => {
-        if (scrollAreaViewportRef.current) {
-          scrollAreaViewportRef.current.scrollTop = scrollAreaViewportRef.current.scrollHeight;
-        }
-      }, 50);
+    const loadVoices = () => {
+      // Just ensure voices are loaded
+      synth.current.getVoices();
+    };
+    synth.current.onvoiceschanged = loadVoices;
+    loadVoices();
+  }, [synth]);
+  // --- END NEW useEffect ---
+
+  // --- MODIFIED: Auto-scroll to bottom ---
+  useEffect(() => {
+    // We check the ref for the *content* div
+    if (contentRef.current) {
+      // The actual scrolling element is the *parent* of our content div,
+      // which is the <ScrollAreaPrimitive.Viewport>
+      const viewport = contentRef.current.parentElement; 
+      
+      if (viewport) {
+        // Use a 0ms timeout to wait for the DOM to render the new messages
+        // before calculating the scrollHeight
+        setTimeout(() => {
+          viewport.scrollTop = viewport.scrollHeight;
+        }, 0);
+      }
     }
-  }, [messages]);
+    // Rerun this effect whenever 'messages' array changes (new message)
+    // or when 'loading' changes (initial load finishes)
+  }, [messages, loading]);
+  // --- END MODIFIED ---
+
 
   // 🎙️ Speech-to-text (Unchanged)
   const startListening = () => {
@@ -79,7 +101,7 @@ const AIChatScreen = () => {
     recognition.start();
   };
   
-  // 🔥 MODIFIED: This function now calls our API
+  // 🔥 MODIFIED: This function now calls our API (Unchanged from your version)
   const handleSendMessage = async (messageText?: string) => {
     const textToSend = (messageText || inputValue).trim();
     
@@ -115,28 +137,23 @@ const AIChatScreen = () => {
       // 3. Find and set a better, more natural voice
       const voices = synth.current.getVoices();
       
-      // --- UPDATED VOICE SELECTION ---
-      // Try to find the "Google UK English Female" voice first
       let selectedVoice = voices.find(voice => voice.name === "Google UK English Female"); 
       
-      // Fallback 1: Try for the Indian English voice
       if (!selectedVoice) {
         selectedVoice = voices.find(voice => voice.name === "Microsoft Heera - English (India)");
       }
       
-      // Fallback 2: Try for the Google US voice
       if (!selectedVoice) {
         selectedVoice = voices.find(voice => voice.name === "Google US English");
       }
-      // --- END VOICE SELECTION ---
 
       if (selectedVoice) {
         utter.voice = selectedVoice;
         console.log(`Using voice: ${selectedVoice.name}`);
       }
       
-      utter.pitch = 1;  // Default is 1
-      utter.rate = 0.9;   // --- CHANGED TO 0.9 --- for a slightly slower, calmer pace.
+      utter.pitch = 1;
+      utter.rate = 0.9; // Slower pace
       synth.current.speak(utter);
 
     } catch (err) {
@@ -212,8 +229,9 @@ const AIChatScreen = () => {
         </div>
       )}
 
+      {/* --- MODIFIED: Renamed ref to 'contentRef' --- */}
       <ScrollArea className="flex-1">
-        <div ref={scrollAreaViewportRef} className="px-6 py-4 space-y-4">
+        <div ref={contentRef} className="px-6 py-4 space-y-4">
           {messages.length === 0 && !loading && ( 
             <div className="text-center text-muted-foreground py-8">
               <p>Start a conversation with your AI companion</p>
