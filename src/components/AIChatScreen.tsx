@@ -42,25 +42,6 @@ const AIChatScreen = () => {
   
   const synth = useRef(window.speechSynthesis);
 
-  // --- NEW: useEffect to find and log available voices ---
-  useEffect(() => {
-    const loadVoices = () => {
-      const voices = synth.current.getVoices();
-      if (voices.length > 0) {
-        console.log("--- Available Speech Voices ---");
-        voices.forEach((voice, index) => {
-          // Log voices to help you choose a better one
-          console.log(`${index}: ${voice.name} (${voice.lang}) ${voice.default ? '[DEFAULT]' : ''}`);
-        });
-      }
-    };
-    
-    // Voices load asynchronously, so we use onvoiceschanged
-    synth.current.onvoiceschanged = loadVoices;
-    loadVoices(); // Call it once in case they're already loaded
-  }, [synth]);
-  // --- END NEW useEffect ---
-
   // Auto-scroll to bottom when messages change
   useEffect(() => {
     if (scrollAreaViewportRef.current) {
@@ -125,25 +106,29 @@ const AIChatScreen = () => {
 
       const data = await res.json();
       
-      // --- 1. Clean the reply to remove asterisks ---
+      // 1. Clean the reply to remove asterisks
       const cleanReply = data.reply.replace(/\*/g, '');
 
-      // --- 2. Use the clean reply for the speech ---
+      // 2. Use the clean reply for the speech
       const utter = new SpeechSynthesisUtterance(cleanReply);
 
-      // --- 3. Find and set a better, more natural voice ---
+      // 3. Find and set a better, more natural voice
       const voices = synth.current.getVoices();
       
-      // --- CUSTOMIZE YOUR VOICE HERE ---
-      // Look at your browser console for the "Available Speech Voices" log
-      // and pick a name you like. "Google US English" is often a good one.
-      let selectedVoice = voices.find(voice => voice.name === "Google US English"); 
+      // --- UPDATED VOICE SELECTION ---
+      // Try to find the "Google UK English Female" voice first
+      let selectedVoice = voices.find(voice => voice.name === "Google UK English Female"); 
       
+      // Fallback 1: Try for the Indian English voice
       if (!selectedVoice) {
-        // Fallback: Try to find any other US English voice that isn't a default robot
-        selectedVoice = voices.find(voice => voice.lang === 'en-US' && !voice.name.includes('David') && !voice.name.includes('Mark'));
+        selectedVoice = voices.find(voice => voice.name === "Microsoft Heera - English (India)");
       }
-      // --- END CUSTOMIZATION ---
+      
+      // Fallback 2: Try for the Google US voice
+      if (!selectedVoice) {
+        selectedVoice = voices.find(voice => voice.name === "Google US English");
+      }
+      // --- END VOICE SELECTION ---
 
       if (selectedVoice) {
         utter.voice = selectedVoice;
@@ -151,7 +136,7 @@ const AIChatScreen = () => {
       }
       
       utter.pitch = 1;  // Default is 1
-      utter.rate = 1;   // Default is 1. You can try 0.9 for a slightly slower, calmer pace.
+      utter.rate = 0.9;   // --- CHANGED TO 0.9 --- for a slightly slower, calmer pace.
       synth.current.speak(utter);
 
     } catch (err) {
