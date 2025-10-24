@@ -42,37 +42,29 @@ const AIChatScreen = () => {
   
   const synth = useRef(window.speechSynthesis);
 
-  // --- NEW: useEffect to find and log available voices (Removed logs) ---
+  // useEffect for loading voices (unchanged)
   useEffect(() => {
     const loadVoices = () => {
-      // Just ensure voices are loaded
       synth.current.getVoices();
     };
     synth.current.onvoiceschanged = loadVoices;
     loadVoices();
   }, [synth]);
-  // --- END NEW useEffect ---
 
-  // --- MODIFIED: Auto-scroll to bottom ---
+  // --- START OF FIX ---
   useEffect(() => {
-    // We check the ref for the *content* div
     if (contentRef.current) {
-      // The actual scrolling element is the *parent* of our content div,
-      // which is the <ScrollAreaPrimitive.Viewport>
       const viewport = contentRef.current.parentElement; 
       
       if (viewport) {
-        // Use a 0ms timeout to wait for the DOM to render the new messages
-        // before calculating the scrollHeight
+        // Use a 50ms timeout to ensure React has repainted
         setTimeout(() => {
           viewport.scrollTop = viewport.scrollHeight;
-        }, 0);
+        }, 50); // <-- This is the fix. Changed from 0 to 50.
       }
     }
-    // Rerun this effect whenever 'messages' array changes (new message)
-    // or when 'loading' changes (initial load finishes)
-  }, [messages, loading]);
-  // --- END MODIFIED ---
+  }, [messages, loading]); // Dependency array is correct
+  // --- END OF FIX ---
 
 
   // 🎙️ Speech-to-text (Unchanged)
@@ -101,51 +93,32 @@ const AIChatScreen = () => {
     recognition.start();
   };
   
-  // 🔥 MODIFIED: This function now calls our API (Unchanged from your version)
+  // 🔥 handleSendMessage function (Unchanged)
   const handleSendMessage = async (messageText?: string) => {
     const textToSend = (messageText || inputValue).trim();
     
     if (!textToSend || isSending || !user) return;
 
     setIsSending(true);
-    setInputValue(''); // Clear input immediately
+    setInputValue('');
     
     try {
       const token = await user.getIdToken();
-
       const res = await fetch("/api/chat", {
         method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}` 
-        },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
         body: JSON.stringify({ message: textToSend }),
       });
 
-      if (!res.ok) {
-        throw new Error("API request failed");
-      }
-
+      if (!res.ok) throw new Error("API request failed");
       const data = await res.json();
-      
-      // 1. Clean the reply to remove asterisks
       const cleanReply = data.reply.replace(/\*/g, '');
-
-      // 2. Use the clean reply for the speech
       const utter = new SpeechSynthesisUtterance(cleanReply);
-
-      // 3. Find and set a better, more natural voice
       const voices = synth.current.getVoices();
       
       let selectedVoice = voices.find(voice => voice.name === "Google UK English Female"); 
-      
-      if (!selectedVoice) {
-        selectedVoice = voices.find(voice => voice.name === "Microsoft Heera - English (India)");
-      }
-      
-      if (!selectedVoice) {
-        selectedVoice = voices.find(voice => voice.name === "Google US English");
-      }
+      if (!selectedVoice) selectedVoice = voices.find(voice => voice.name === "Microsoft Heera - English (India)");
+      if (!selectedVoice) selectedVoice = voices.find(voice => voice.name === "Google US English");
 
       if (selectedVoice) {
         utter.voice = selectedVoice;
@@ -153,7 +126,7 @@ const AIChatScreen = () => {
       }
       
       utter.pitch = 1;
-      utter.rate = 0.9; // Slower pace
+      utter.rate = 0.9;
       synth.current.speak(utter);
 
     } catch (err) {
@@ -163,6 +136,7 @@ const AIChatScreen = () => {
     }
   };
 
+  // handleKeyPress (Unchanged)
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && !isSending && inputValue.trim()) {
       handleSendMessage();
@@ -186,23 +160,16 @@ const AIChatScreen = () => {
   const formatTimestamp = (timestamp?: { toDate?: () => Date } | string | number | Date) => {
     const date = toDate(timestamp);
     if (isNaN(date.getTime())) return "Sending..."; 
-    return date.toLocaleTimeString('en-US', {  
-      hour: 'numeric',  
-      minute: '2-digit'  
-    });
+    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   };
   // --- End Timestamp formatting ---
 
-  // --- JSX (Unchanged) ---
+  // --- JSX ---
   return (
     <div className="flex flex-col h-screen bg-background">
+      {/* Header (Unchanged) */}
       <header className="flex items-center gap-4 px-6 py-4 border-b bg-white/70 backdrop-blur-md">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => navigate('/')}
-          className="hover:bg-white/50"
-        >
+        <Button variant="ghost" size="icon" onClick={() => navigate('/')} className="hover:bg-white/50">
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
@@ -211,18 +178,21 @@ const AIChatScreen = () => {
         </div>
       </header>
 
+      {/* Crisis Warning (Unchanged) */}
       <div className="px-6 py-2 bg-blue-50 border-b border-blue-200">
         <p className="text-sm text-blue-800">
           This AI is not a substitute for professional help. If you're in crisis, please call 988 (Suicide & Crisis Lifeline).
         </p>
       </div>
 
+      {/* Error Display (Unchanged) */}
       {error && (
         <div className="px-6 py-2 bg-destructive/10 border-b border-destructive/20">
           <p className="text-destructive text-sm">Error: {error}</p>
         </div>
       )}
 
+      {/* Loading State (Unchanged) */}
       {loading && (
         <div className="px-6 py-2 bg-muted/50 border-b">
           <p className="text-muted-foreground text-sm">Loading messages...</p>
@@ -232,6 +202,7 @@ const AIChatScreen = () => {
       {/* --- MODIFIED: Renamed ref to 'contentRef' --- */}
       <ScrollArea className="flex-1">
         <div ref={contentRef} className="px-6 py-4 space-y-4">
+          {/* All child elements are unchanged */}
           {messages.length === 0 && !loading && ( 
             <div className="text-center text-muted-foreground py-8">
               <p>Start a conversation with your AI companion</p>
@@ -272,6 +243,7 @@ const AIChatScreen = () => {
         </div>
       </ScrollArea>
 
+      {/* Input Area (Unchanged) */}
       <div className="px-6 py-4 border-t bg-white/70 backdrop-blur-md">
         <div className="flex gap-2">
           <Button
