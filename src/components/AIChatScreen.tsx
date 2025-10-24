@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ArrowLeft, Send, Mic } from "lucide-react"; // NEW: Added Microphone
+import { ArrowLeft, Send, Mic } from "lucide-react";
 import { useRealtimeChat } from "@/hooks/useFirestore";
 import { useAuth } from "@/context/AuthContext";
 import type { ChatMessage as BaseChatMessage } from '@/services/firestoreService';
@@ -33,19 +33,33 @@ type BrowserSpeech = {
 const AIChatScreen = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
-  // ✅ KEPT: Your real-time hook still does all the hard work of displaying messages!
   const { messages, loading, error } = useRealtimeChat();
   
-  // NEW: Local state for input and sending status
   const [inputValue, setInputValue] = useState('');
-  const [isSending, setIsSending] = useState(false); // NEW: Local sending state
+  const [isSending, setIsSending] = useState(false); 
   
   const scrollAreaViewportRef = useRef<HTMLDivElement>(null);
   
-  // NEW: Ref for text-to-speech
   const synth = useRef(window.speechSynthesis);
 
-  // Hooks are declared above. We'll still show loading/unauthenticated UI, but after hooks run.
+  // --- NEW: useEffect to find and log available voices ---
+  useEffect(() => {
+    const loadVoices = () => {
+      const voices = synth.current.getVoices();
+      if (voices.length > 0) {
+        console.log("--- Available Speech Voices ---");
+        voices.forEach((voice, index) => {
+          // Log voices to help you choose a better one
+          console.log(`${index}: ${voice.name} (${voice.lang}) ${voice.default ? '[DEFAULT]' : ''}`);
+        });
+      }
+    };
+    
+    // Voices load asynchronously, so we use onvoiceschanged
+    synth.current.onvoiceschanged = loadVoices;
+    loadVoices(); // Call it once in case they're already loaded
+  }, [synth]);
+  // --- END NEW useEffect ---
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -58,11 +72,10 @@ const AIChatScreen = () => {
     }
   }, [messages]);
 
-  // 🎙️ NEW: Speech-to-text
+  // 🎙️ Speech-to-text (Unchanged)
   const startListening = () => {
-    // Provide a safer typing for window SpeechRecognition variants
-  const globalWindow = window as unknown as BrowserSpeech;
-  const SpeechRecognition = globalWindow.SpeechRecognition || globalWindow.webkitSpeechRecognition;
+    const globalWindow = window as unknown as BrowserSpeech;
+    const SpeechRecognition = globalWindow.SpeechRecognition || globalWindow.webkitSpeechRecognition;
     if (!SpeechRecognition) {
       alert("Speech recognition not supported in this browser");
       return;
@@ -70,20 +83,17 @@ const AIChatScreen = () => {
     const recognition = new SpeechRecognition();
     recognition.lang = "en-US";
     recognition.onstart = () => {
-      setIsSending(true); // Visually indicate we're listening
+      setIsSending(true); 
     };
-    // results typing differs between browsers; allow any locally with a clear eslint exception
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     recognition.onresult = (e: any) => {
-      // e.results typing may be platform-specific; access cautiously
       const transcript = (e && e.results && e.results[0] && e.results[0][0] && e.results[0][0].transcript) || '';
       setInputValue(transcript);
-      setIsSending(false); // We have the result
-      // Automatically send after speech
+      setIsSending(false); 
       handleSendMessage(transcript);
     };
     recognition.onend = () => {
-      setIsSending(false); // Stop listening
+      setIsSending(false); 
     };
     recognition.start();
   };
@@ -98,14 +108,13 @@ const AIChatScreen = () => {
     setInputValue(''); // Clear input immediately
     
     try {
-      // Get the user's auth token to send to the API
       const token = await user.getIdToken();
 
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}` // Send the secure token
+          "Authorization": `Bearer ${token}` 
         },
         body: JSON.stringify({ message: textToSend }),
       });
@@ -116,15 +125,37 @@ const AIChatScreen = () => {
 
       const data = await res.json();
       
-      // 🔊 NEW: Text-to-Speech
-      const utter = new SpeechSynthesisUtterance(data.reply);
-      utter.pitch = 1;
-      utter.rate = 1;
+      // --- 1. Clean the reply to remove asterisks ---
+      const cleanReply = data.reply.replace(/\*/g, '');
+
+      // --- 2. Use the clean reply for the speech ---
+      const utter = new SpeechSynthesisUtterance(cleanReply);
+
+      // --- 3. Find and set a better, more natural voice ---
+      const voices = synth.current.getVoices();
+      
+      // --- CUSTOMIZE YOUR VOICE HERE ---
+      // Look at your browser console for the "Available Speech Voices" log
+      // and pick a name you like. "Google US English" is often a good one.
+      let selectedVoice = voices.find(voice => voice.name === "Google US English"); 
+      
+      if (!selectedVoice) {
+        // Fallback: Try to find any other US English voice that isn't a default robot
+        selectedVoice = voices.find(voice => voice.lang === 'en-US' && !voice.name.includes('David') && !voice.name.includes('Mark'));
+      }
+      // --- END CUSTOMIZATION ---
+
+      if (selectedVoice) {
+        utter.voice = selectedVoice;
+        console.log(`Using voice: ${selectedVoice.name}`);
+      }
+      
+      utter.pitch = 1;  // Default is 1
+      utter.rate = 1;   // Default is 1. You can try 0.9 for a slightly slower, calmer pace.
       synth.current.speak(utter);
 
     } catch (err) {
       console.error("Error sending message:", err);
-      // (Optional: You could write a local error message back to the chat)
     } finally {
       setIsSending(false);
     }
@@ -136,6 +167,7 @@ const AIChatScreen = () => {
     }
   };
 
+  // --- Timestamp formatting (Unchanged) ---
   const isTimestampLike = (v: unknown): v is { toDate: () => Date } => {
     return (
       typeof v === 'object' &&
@@ -144,26 +176,24 @@ const AIChatScreen = () => {
       typeof (v as { toDate?: unknown }).toDate === 'function'
     );
   };
-
   const toDate = (t?: { toDate?: () => Date } | string | number | Date): Date => {
     if (!t) return new Date(NaN);
     if (isTimestampLike(t)) return t.toDate();
     return new Date(t as string | number | Date);
   };
-
   const formatTimestamp = (timestamp?: { toDate?: () => Date } | string | number | Date) => {
-    // Handle both Date objects and Firestore Timestamps
     const date = toDate(timestamp);
-    if (isNaN(date.getTime())) return "Sending..."; // Handle pending timestamp
+    if (isNaN(date.getTime())) return "Sending..."; 
     return date.toLocaleTimeString('en-US', {  
       hour: 'numeric',  
       minute: '2-digit'  
     });
   };
+  // --- End Timestamp formatting ---
 
+  // --- JSX (Unchanged) ---
   return (
     <div className="flex flex-col h-screen bg-background">
-      {/* Header (No changes) */}
       <header className="flex items-center gap-4 px-6 py-4 border-b bg-white/70 backdrop-blur-md">
         <Button
           variant="ghost"
@@ -179,31 +209,27 @@ const AIChatScreen = () => {
         </div>
       </header>
 
-      {/* Crisis Warning (No changes) */}
       <div className="px-6 py-2 bg-blue-50 border-b border-blue-200">
         <p className="text-sm text-blue-800">
           This AI is not a substitute for professional help. If you're in crisis, please call 988 (Suicide & Crisis Lifeline).
         </p>
       </div>
 
-      {/* Error Display (No changes) */}
       {error && (
         <div className="px-6 py-2 bg-destructive/10 border-b border-destructive/20">
           <p className="text-destructive text-sm">Error: {error}</p>
         </div>
       )}
 
-      {/* Loading State (No changes) */}
       {loading && (
         <div className="px-6 py-2 bg-muted/50 border-b">
           <p className="text-muted-foreground text-sm">Loading messages...</p>
         </div>
       )}
 
-      {/* Messages Area */}
       <ScrollArea className="flex-1">
         <div ref={scrollAreaViewportRef} className="px-6 py-4 space-y-4">
-          {messages.length === 0 && !loading && ( // Modified condition
+          {messages.length === 0 && !loading && ( 
             <div className="text-center text-muted-foreground py-8">
               <p>Start a conversation with your AI companion</p>
               <p className="text-xs mt-2 text-muted-foreground/70">Your messages are now saved to Firestore</p>
@@ -222,7 +248,6 @@ const AIChatScreen = () => {
                 }`}
               >
                 <p className="text-sm whitespace-pre-wrap break-words">{message.text}</p>
-                {/* ✅ NEW: Show mood if it exists */}
                 {message.sender === 'ai' && message.mood && (
                   <p className="text-xs italic opacity-70 mt-1">
                     (Mood: {message.mood})
@@ -238,25 +263,22 @@ const AIChatScreen = () => {
               </div>
             </div>
           ))}
-          {/* NEW: Show thinking... for API call */}
           {isSending && !inputValue && (
              <div className="text-center text-muted-foreground text-sm">Thinking...</div>
           )}
         </div>
       </ScrollArea>
 
-      {/* Input Area */}
       <div className="px-6 py-4 border-t bg-white/70 backdrop-blur-md">
         <div className="flex gap-2">
-          {/* 🎙️ NEW: Mic Button */}
           <Button
-  onClick={startListening}
-  disabled={isSending}
-  variant="ghost"
-  size="icon"
->
-  <Mic className="h-4 w-4" />
-</Button>
+            onClick={startListening}
+            disabled={isSending}
+            variant="ghost"
+            size="icon"
+          >
+            <Mic className="h-4 w-4" />
+          </Button>
           <Input
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
@@ -266,7 +288,7 @@ const AIChatScreen = () => {
             className="flex-1"
           />
           <Button
-            onClick={() => handleSendMessage()} // Modified
+            onClick={() => handleSendMessage()} 
             disabled={isSending || !inputValue.trim()}
             size="icon"
           >
