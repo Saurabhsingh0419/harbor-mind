@@ -1,35 +1,86 @@
 // src/pages/GoalPlanner.tsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
+import { db } from "@/firebaseConfig";
+import { collection, addDoc, query, where, orderBy, onSnapshot, Timestamp, deleteDoc, doc } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { ChevronLeft, Target, Trash2 } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { ChevronLeft, Target, Check } from "lucide-react";
 import { toast } from "sonner";
 
-const GoalPlanner = () => {
-  const [goals, setGoals] = useState<string[]>([]);
-  const [goalInput, setGoalInput] = useState("");
+// Type for a goal
+interface GoalEntry {
+  id: string;
+  userId: string;
+  text: string;
+  createdAt: Timestamp;
+}
 
-  const handleAddGoal = () => {
-    if (goalInput.trim()) {
-      setGoals([...goals, goalInput.trim()]);
-      setGoalInput("");
-      toast.success("Goal added!", {
-        description: "Your wellness goal has been added to your planner."
+const GoalPlanner = () => {
+  const { user } = useAuth();
+  const [newGoal, setNewGoal] = useState("");
+  const [goals, setGoals] = useState<GoalEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Real-time listener for goals
+  useEffect(() => {
+    if (user) {
+      const goalsCollection = collection(db, "goalPlannerEntries");
+      const q = query(
+        goalsCollection,
+        where("userId", "==", user.uid),
+        orderBy("createdAt", "desc") // Show newest first
+      );
+
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const savedGoals = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        } as GoalEntry));
+        setGoals(savedGoals);
+        setLoading(false);
       });
-    } else {
+
+      return () => unsubscribe(); // Unsubscribe on unmount
+    }
+  }, [user]);
+
+  const handleAddGoal = async () => {
+    if (!user || newGoal.trim() === "") {
       toast.error("Please enter a goal before adding.");
+      return;
+    }
+
+    try {
+      await addDoc(collection(db, "goalPlannerEntries"), {
+        userId: user.uid,
+        text: newGoal,
+        createdAt: Timestamp.now()
+      });
+      setNewGoal(""); // Clear input
+      toast.success("Goal added!");
+    } catch (error) {
+      console.error("Error saving goal:", error);
+      toast.error("Failed to add goal. Please try again.");
     }
   };
 
-  const handleDeleteGoal = (index: number) => {
-    setGoals(goals.filter((_, i) => i !== index));
-    toast.success("Goal removed from planner.");
+  const handleCompleteGoal = async (goalId: string) => {
+    if (!user) return;
+    try {
+      await deleteDoc(doc(db, "goalPlannerEntries", goalId));
+      toast.success("Goal completed! 🎉");
+    } catch (error) {
+      console.error("Error deleting goal:", error);
+      toast.error("Failed to complete goal. Please try again.");
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && goalInput.trim()) {
+    if (e.key === 'Enter' && newGoal.trim()) {
       handleAddGoal();
     }
   };
@@ -55,30 +106,28 @@ const GoalPlanner = () => {
         </div>
       </div>
 
-      {/* Content */}
-      <div className="container mx-auto px-6 py-8 max-w-4xl">
+      {/* Page Content */}
+      <div className="container mx-auto px-6 py-8 space-y-6 max-w-4xl">
+        {/* New Goal Input */}
         <Card className="bg-white/70 backdrop-blur-md border border-white/20 shadow-soft">
           <CardContent className="p-6 space-y-4">
             <div>
-              <h2 className="text-lg font-semibold text-foreground mb-2">
-                Add a New Goal
-              </h2>
-              <p className="text-sm text-muted-foreground mb-4">
-                Set specific, achievable goals for your mental wellness journey. 
-                Break down larger goals into smaller, actionable steps.
+              <h3 className="text-lg font-semibold text-foreground mb-2">Add a New Goal</h3>
+              <p className="text-sm text-muted-foreground">
+                Set specific, achievable goals for your mental wellness journey.
               </p>
             </div>
-            
             <div className="flex gap-2">
               <Input
                 placeholder="Example: Practice 5 minutes of meditation daily"
-                value={goalInput}
-                onChange={(e) => setGoalInput(e.target.value)}
+                value={newGoal}
+                onChange={(e) => setNewGoal(e.target.value)}
                 onKeyPress={handleKeyPress}
                 className="flex-1"
               />
-              <Button 
+              <Button
                 onClick={handleAddGoal}
+                disabled={newGoal.trim() === ""}
                 className="bg-gradient-primary text-white hover:opacity-90"
               >
                 Add Goal
@@ -87,51 +136,8 @@ const GoalPlanner = () => {
           </CardContent>
         </Card>
 
-        {/* Goals List */}
-        {goals.length > 0 && (
-          <div className="mt-6 space-y-3">
-            <h3 className="text-lg font-semibold text-foreground">
-              Your Goals ({goals.length})
-            </h3>
-            {goals.map((goal, index) => (
-              <Card 
-                key={index} 
-                className="bg-white/70 backdrop-blur-md border border-white/20 hover:shadow-glass transition-all duration-300"
-              >
-                <CardContent className="p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3 flex-1">
-                    <div className="p-2 rounded-lg bg-primary/10">
-                      <Target className="w-5 h-5 text-primary" />
-                    </div>
-                    <p className="text-foreground">{goal}</p>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleDeleteGoal(index)}
-                    className="hover:bg-destructive/10 hover:text-destructive"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
-
-        {goals.length === 0 && (
-          <Card className="mt-6 bg-white/70 backdrop-blur-md border border-white/20">
-            <CardContent className="p-8 text-center">
-              <Target className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-              <p className="text-muted-foreground">
-                No goals yet. Add your first wellness goal above!
-              </p>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Tips Section */}
-        <Card className="mt-6 bg-white/70 backdrop-blur-md border border-white/20">
+        {/* Goal Setting Tips */}
+        <Card className="bg-white/70 backdrop-blur-md border border-white/20">
           <CardContent className="p-6">
             <h3 className="font-semibold text-foreground mb-3">Goal Setting Tips</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
@@ -143,6 +149,63 @@ const GoalPlanner = () => {
             </ul>
           </CardContent>
         </Card>
+
+        {/* Current Goals */}
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold text-foreground">
+            Your Current Goals {goals.length > 0 && `(${goals.length})`}
+          </h2>
+          {loading && <p className="text-muted-foreground">Loading goals...</p>}
+          {!loading && goals.length === 0 && (
+            <Card className="bg-white/70 backdrop-blur-md border border-white/20">
+              <CardContent className="p-8 text-center">
+                <Target className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+                <p className="text-muted-foreground">
+                  No goals yet. Add your first wellness goal above!
+                </p>
+              </CardContent>
+            </Card>
+          )}
+          {!loading && goals.length > 0 && (
+            <ScrollArea className="h-[500px] w-full rounded-lg border">
+              <div className="space-y-3 p-4">
+                {goals.map((goal) => (
+                  <Card 
+                    key={goal.id} 
+                    className="bg-white/70 backdrop-blur-md border border-white/20 hover:shadow-glass transition-all duration-300"
+                  >
+                    <CardContent className="p-4 flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className="p-2 rounded-lg bg-primary/10 flex-shrink-0">
+                          <Target className="w-5 h-5 text-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-foreground break-words">{goal.text}</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Added {goal.createdAt.toDate().toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric'
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-green-600 hover:text-green-700 hover:bg-green-100 flex-shrink-0"
+                        onClick={() => handleCompleteGoal(goal.id)}
+                        title="Mark as complete"
+                      >
+                        <Check className="w-5 h-5" />
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </ScrollArea>
+          )}
+        </div>
       </div>
     </div>
   );
