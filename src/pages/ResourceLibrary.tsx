@@ -212,14 +212,22 @@ const ResourceLibrary = () => {
           </Carousel>
         </section>
 
-        {/* Tabbed Content */}
+    {/* Tabbed Content */}
         <section>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            {/* --- START OF FIX --- */}
             <TabsList className="grid w-full grid-cols-3 mb-8">
-              <TabsTrigger value="articles">Articles & Videos</TabsTrigger>
-              <TabsTrigger value="tools">Interactive Tools</TabsTrigger>
-              <TabsTrigger value="exercises">Guided Exercises</TabsTrigger>
+              <TabsTrigger value="articles" className="h-auto whitespace-normal text-xs sm:text-sm">
+                Articles & Videos
+              </TabsTrigger>
+              <TabsTrigger value="tools" className="h-auto whitespace-normal text-xs sm:text-sm">
+                Interactive Tools
+              </TabsTrigger>
+              <TabsTrigger value="exercises" className="h-auto whitespace-normal text-xs sm:text-sm">
+                Guided Exercises
+              </TabsTrigger>
             </TabsList>
+            {/* --- END OF FIX --- */}
 
             {/* Articles & Videos Tab */}
             <TabsContent value="articles" className="space-y-6">
