@@ -1,6 +1,7 @@
 import { useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card"; // Removed unused imports
+import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
@@ -14,7 +15,6 @@ import {
   Smile,
   ChevronLeft
 } from "lucide-react";
-import { Link } from "react-router-dom";
 
 // --- Helper type for resources ---
 interface Resource {
@@ -29,12 +29,13 @@ interface ArticleVideo {
   title: string;
   category: string;
   description: string;
-  thumbnail: string; // This will now be a real URL
+  thumbnail: string;
   type: string;
   url: string;
 }
 
 interface InteractiveTool {
+  id: string;
   title: string;
   description: string;
   icon: React.ElementType;
@@ -51,6 +52,7 @@ interface GuidedExercise {
 
 const ResourceLibrary = () => {
   const [activeTab, setActiveTab] = useState("articles");
+  const navigate = useNavigate();
 
   const recommendedCards: Resource[] = [
     {
@@ -83,13 +85,12 @@ const ResourceLibrary = () => {
     }
   ];
 
-  // --- MODIFIED: Added real thumbnail URLs ---
   const articlesVideos: ArticleVideo[] = [
     {
       title: "Understanding Anxiety",
       category: "Anxiety",
       description: "Learn about the science behind anxiety and how it affects students.",
-      thumbnail: "https://images.unsplash.com/opengraph/1x1.png?auto=format&fit=crop&q=60&mark=https%3A%2F%2Fimages.unsplash.com%2Fopengraph%2Flogo.png&mark-w=64&mark-align=top%2Cleft&mark-pad=50&h=630&w=1200&blend=https%3A%2F%2Fimages.unsplash.com%2Fphoto-1618616191524-a9721186cbe4%3Fixid%3DM3wxMjA3fDB8MXxzZWFyY2h8M3x8YW54aWV0eXxlbnwwfHx8fDE3NjEwNjM4MzF8MA%26ixlib%3Drb-4.1.0%26auto%3Dformat%26fit%3Dcrop%26q%3D60%26crop%3Dfaces%252Cedges%26h%3D630%26w%3D1200%26blend%3D000000%26blend-mode%3Dnormal%26blend-alpha%3D10%26mark-w%3D750%26mark-align%3Dmiddle%252Ccenter%26mark%3Dhttps%253A%252F%252Fimages.unsplash.com%252Fopengraph%252Fsearch-input.png%253Fauto%253Dformat%2526fit%253Dcrop%2526q%253D60%2526w%253D750%2526h%253D84%2526txt%253Danxiety%2526txt-pad%253D80%2526txt-align%253Dmiddle%25252Cleft%2526txt-color%253D%252523000000%2526txt-size%253D40%2526txt-width%253D660%2526txt-clip%253Dellipsis&blend-w=1", // Example: YouTube thumbnail
+      thumbnail: "https://images.unsplash.com/opengraph/1x1.png?auto=format&fit=crop&q=60&mark=https%3A%2F%2Fimages.unsplash.com%2Fopengraph%2Flogo.png&mark-w=64&mark-align=top%2Cleft&mark-pad=50&h=630&w=1200&blend=https%3A%2F%2Fimages.unsplash.com%2Fphoto-1618616191524-a9721186cbe4%3Fixid%3DM3wxMjA3fDB8MXxzZWFyY2h8M3x8YW54aWV0eXxlbnwwfHx8fDE3NjEwNjM4MzF8MA%26ixlib%3Drb-4.1.0%26auto%3Dformat%26fit%3Dcrop%26q%3D60%26crop%3Dfaces%252Cedges%26h%3D630%26w%3D1200%26blend%3D000000%26blend-mode%3Dnormal%26blend-alpha%3D10%26mark-w%3D750%26mark-align%3Dmiddle%252Ccenter%26mark%3Dhttps%253A%252F%252Fimages.unsplash.com%252Fopengraph%252Fsearch-input.png%253Fauto%253Dformat%2526fit%253Dcrop%2526q%253D60%2526w%253D750%2526h%253D84%2526txt%253Danxiety%2526txt-pad%253D80%2526txt-align%253Dmiddle%25252Cleft%2526txt-color%253D%252523000000%2526txt-size%253D40%2526txt-width%253D660%2526txt-clip%253Dellipsis&blend-w=1",
       type: "Article",
       url: "https://www.mayoclinic.org/diseases-conditions/anxiety/symptoms-causes/syc-20350961"
     },
@@ -97,7 +98,7 @@ const ResourceLibrary = () => {
       title: "Building Healthy Study Habits",
       category: "Academic",
       description: "Practical strategies for sustainable learning and productivity.",
-      thumbnail: "https://img.youtube.com/vi/1bszFX_XcbU/0.jpg", // Example: YouTube thumbnail
+      thumbnail: "https://img.youtube.com/vi/1bszFX_XcbU/0.jpg",
       type: "Video",
       url: "https://www.youtube.com/watch?v=1bszFX_XcbU"
     },
@@ -105,7 +106,7 @@ const ResourceLibrary = () => {
       title: "Managing Social Anxiety",
       category: "Social",
       description: "Tools and techniques for navigating social situations with confidence.",
-      thumbnail: "https://images.unsplash.com/photo-1604062204441-0c4497bb3cb9?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8M3x8c29jaWFsJTIwYW54aWV0eXxlbnwwfHwwfHx8MA%3D%3D&fm=jpg&q=60&w=3000", // Example: YouTube thumbnail
+      thumbnail: "https://images.unsplash.com/photo-1604062204441-0c4497bb3cb9?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8M3x8c29jaWFsJTIwYW54aWV0eXxlbnwwfHwwfHx8MA%3D%3D&fm=jpg&q=60&w=3000",
       type: "Article",
       url: "https://jedfoundation.org/resource/understanding-anxiety-disorders/"
     },
@@ -113,7 +114,7 @@ const ResourceLibrary = () => {
       title: "Depression: What You Need to Know",
       category: "Mental Health",
       description: "Understanding depression symptoms and when to seek help.",
-      thumbnail: "https://img.youtube.com/vi/HWcphoKlbxY/0.jpg", // Example: YouTube thumbnail
+      thumbnail: "https://img.youtube.com/vi/HWcphoKlbxY/0.jpg",
       type: "Video",
       url: "https://www.youtube.com/watch?v=HWcphoKlbxY"
     },
@@ -121,7 +122,7 @@ const ResourceLibrary = () => {
       title: "Healthy Relationships in College",
       category: "Relationships",
       description: "Building and maintaining meaningful connections during your studies.",
-      thumbnail: "https://images.unsplash.com/opengraph/1x1.png?auto=format&fit=crop&q=60&mark=https%3A%2F%2Fimages.unsplash.com%2Fopengraph%2Flogo.png&mark-w=64&mark-align=top%2Cleft&mark-pad=50&h=630&w=1200&blend=https%3A%2F%2Fimages.unsplash.com%2Fphoto-1579208570378-8c970854bc23%3Fixid%3DM3wxMjA3fDB8MXxzZWFyY2h8Mnx8aGVhbHRoeSUyMHJlbGF0aW9uc2hpcHxlbnwwfHx8fDE3NjEzNzk1MTN8MA%26ixlib%3Drb-4.1.0%26auto%3Dformat%26fit%3Dcrop%26q%3D60%26crop%3Dfaces%252Cedges%26h%3D630%26w%3D1200%26blend%3D000000%26blend-mode%3Dnormal%26blend-alpha%3D10%26mark-w%3D750%26mark-align%3Dmiddle%252Ccenter%26mark%3Dhttps%253A%252F%252Fimages.unsplash.com%252Fopengraph%252Fsearch-input.png%253Fauto%253Dformat%2526fit%253Dcrop%2526q%253D60%2526w%253D750%2526h%253D84%2526txt%253Dhealthy%252Brelationship%2526txt-pad%253D80%2526txt-align%253Dmiddle%25252Cleft%2526txt-color%253D%252523000000%2526txt-size%253D40%2526txt-width%253D660%2526txt-clip%253Dellipsis&blend-w=1", // Example: YouTube thumbnail
+      thumbnail: "https://images.unsplash.com/opengraph/1x1.png?auto=format&fit=crop&q=60&mark=https%3A%2F%2Fimages.unsplash.com%2Fopengraph%2Flogo.png&mark-w=64&mark-align=top%2Cleft&mark-pad=50&h=630&w=1200&blend=https%3A%2F%2Fimages.unsplash.com%2Fphoto-1579208570378-8c970854bc23%3Fixid%3DM3wxMjA3fDB8MXxzZWFyY2h8Mnx8aGVhbHRoeSUyMHJlbGF0aW9uc2hpcHxlbnwwfHx8fDE3NjEzNzk1MTN8MA%26ixlib%3Drb-4.1.0%26auto%3Dformat%26fit%3Dcrop%26q%3D60%26crop%3Dfaces%252Cedges%26h%3D630%26w%3D1200%26blend%3D000000%26blend-mode%3Dnormal%26blend-alpha%3D10%26mark-w%3D750%26mark-align%3Dmiddle%252Ccenter%26mark%3Dhttps%253A%252F%252Fimages.unsplash.com%252Fopengraph%252Fsearch-input.png%253Fauto%253Dformat%2526fit%253Dcrop%2526q%253D60%2526w%253D750%2526h%253D84%2526txt%253Dhealthy%252Brelationship%2526txt-pad%253D80%2526txt-align%253Dmiddle%25252Cleft%2526txt-color%253D%252523000000%2526txt-size%253D40%2526txt-width%253D660%2526txt-clip%253Dellipsis&blend-w=1",
       type: "Article",
       url: "https://www.utep.edu/healthy-miner/resources/the-art-of-maintaining-a-healthy-relationship-in-college.html"
     },
@@ -129,7 +130,7 @@ const ResourceLibrary = () => {
       title: "Stress Management Techniques",
       category: "Stress",
       description: "Evidence-based methods for reducing and managing stress.",
-      thumbnail: "https://img.youtube.com/vi/0fL-pn80s-c/0.jpg", // Example: YouTube thumbnail
+      thumbnail: "https://img.youtube.com/vi/0fL-pn80s-c/0.jpg",
       type: "Video",
       url: "https://www.youtube.com/watch?v=0fL-pn80s-c"
     },
@@ -137,24 +138,31 @@ const ResourceLibrary = () => {
 
   const interactiveTools: InteractiveTool[] = [
     {
+      id: "cbt-journal",
       title: "CBT Thought Journal",
       description: "Identify and reframe negative thought patterns with guided prompts.",
       icon: PenTool,
       color: "bg-primary/10"
     },
     {
+      id: "mood-journal",
       title: "Daily Mood Journal",
       description: "Track your emotions and reflect on your day with personalized insights.",
       icon: Smile,
       color: "bg-accent/20"
     },
     {
+      id: "goal-planner",
       title: "Goal Setting Planner",
       description: "Set achievable goals and track your progress with interactive tools.",
       icon: BookOpen,
       color: "bg-secondary/30"
     }
   ];
+
+  const handleToolClick = (toolId: string) => {
+    navigate(`/${toolId}`);
+  };
   
   const guidedExercises: GuidedExercise[] = [
     {
@@ -171,12 +179,11 @@ const ResourceLibrary = () => {
       description: "Peaceful meditation to help you fall asleep naturally.",
       url: "https://www.youtube.com/watch?v=TP2gb2fSYXY" 
     },
-    // ... add URLs for other items ...
   ];
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header (unchanged) */}
+      {/* Header */}
       <div className="bg-white/80 backdrop-blur-md border-b border-white/20 sticky top-0 z-50">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center space-x-4">
@@ -268,20 +275,17 @@ const ResourceLibrary = () => {
                     rel="noopener noreferrer"
                     className="block outline-none focus:ring-2 focus:ring-ring focus:rounded-lg"
                   >
-                    {/* --- START OF FIX --- */}
                     <Card className="bg-white/70 backdrop-blur-md border border-white/20 hover:shadow-glass transition-all duration-300 h-full">
-                      {/* Replaced the div with an <img> tag */}
                       <div className="aspect-video bg-muted rounded-t-lg relative overflow-hidden">
                         <img
                           src={item.thumbnail}
                           alt={item.title}
-                          className="w-full h-full object-cover" // Ensure image covers the area
+                          className="w-full h-full object-cover"
                         />
                         <Badge className="absolute top-3 left-3 bg-white/90 text-foreground">
                           {item.type}
                         </Badge>
                       </div>
-                      {/* --- END OF FIX --- */}
 
                       <CardContent className="p-4">
                         <div className="flex items-center justify-between mb-2">
@@ -302,7 +306,7 @@ const ResourceLibrary = () => {
               </div>
             </TabsContent>
 
-            {/* Interactive Tools Tab (Unchanged) */}
+            {/* Interactive Tools Tab */}
             <TabsContent value="tools" className="space-y-6">
               <div className="space-y-4">
                 {interactiveTools.map((tool, index) => (
@@ -321,6 +325,7 @@ const ResourceLibrary = () => {
                           </p>
                           <Button 
                             className="bg-gradient-primary text-white hover:opacity-90"
+                            onClick={() => handleToolClick(tool.id)}
                           >
                             {tool.title.includes("Journal") ? "Open Journal" : "Open Tool"}
                           </Button>
@@ -332,7 +337,7 @@ const ResourceLibrary = () => {
               </div>
             </TabsContent>
 
-            {/* Guided Exercises Tab (Unchanged) */}
+            {/* Guided Exercises Tab */}
             <TabsContent value="exercises" className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {guidedExercises.map((exercise, index) => (
