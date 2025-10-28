@@ -162,14 +162,14 @@ const ResourceLibrary = () => {
       duration: "2 MIN",
       category: "Breathing",
       description: "Simple breathing technique to reduce anxiety and stress.",
-      url: "https://www.youtube.com/watch?v=example7" 
+      url: "https://www.youtube.com/watch?v=tEmt1Znux58" 
     },
     {
       title: "Meditation for Deep Sleep",
       duration: "10 MIN",
       category: "Sleep",
       description: "Peaceful meditation to help you fall asleep naturally.",
-      url: "https://www.youtube.com/watch?v=example8" 
+      url: "https://www.youtube.com/watch?v=TP2gb2fSYXY" 
     },
     // ... add URLs for other items ...
   ];
