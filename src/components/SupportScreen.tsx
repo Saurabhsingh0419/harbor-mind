@@ -63,7 +63,7 @@ const SupportScreen = () => {
               <p className="text-muted-foreground text-lg leading-relaxed max-w-2xl mx-auto">
                 Remember that your feelings are valid. You are not a burden, and you are stronger than you know. 
                 This moment of pain is temporary, even if it doesn't feel that way. 
-                Be gentle with yourself—you deserve the same love and kindness you give to others.
+                Be gentle with yourself,you deserve the same love and kindness you give to others.
                 YOU MATTER, YOUR LIFE MATTERS.
               </p>
             </div>
