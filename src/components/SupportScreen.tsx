@@ -1,34 +1,9 @@
 import { Button } from "@/components/ui/button";
-import { Phone } from "lucide-react";
-import CounselorCard from "./CounselorCard";
+import { Phone, Heart } from "lucide-react";
+
 
 const SupportScreen = () => {
-  const handleCallNow = () => {
-    console.log("Emergency call initiated");
-  };
-
-  const handleBookSession = (counselorName: string) => {
-    console.log(`Booking session with ${counselorName}`);
-  };
-
-  // Mock counselor data
-  const counselors = [
-    {
-      name: "Dr. XYZ",
-      specialty: "Anxiety & Academic Stress",
-      image: "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=400&h=400&fit=crop&crop=face"
-    },
-    {
-      name: "Dr. XYZA",
-      specialty: "Depression & Life Transitions", 
-      image: "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400&h=400&fit=crop&crop=face"
-    },
-    {
-      name: "Dr. XYZAB",
-      specialty: "Relationship & Social Issues",
-      image: "https://images.unsplash.com/photo-1594824720863-4670a67817e8?w=400&h=400&fit=crop&crop=face"
-    }
-  ];
+ 
 
   return (
     <div className="min-h-screen bg-background">
@@ -59,13 +34,15 @@ const SupportScreen = () => {
               </p>
             </div>
             
+            
             <Button 
               size="lg"
               className="bg-accent hover:bg-accent/90 text-accent-foreground font-semibold px-12 py-4 rounded-2xl shadow-soft hover:scale-105 transition-all duration-300"
-              onClick={handleCallNow}
+              asChild
             >
-              CALL NOW
+              <a href="tel:14416">CALL NOW</a>
             </Button>
+           
             
             <div className="mt-4 text-sm text-muted-foreground">
               Crisis Hotline: 14416 (Suicide & Crisis Lifeline)
@@ -73,36 +50,27 @@ const SupportScreen = () => {
           </div>
         </div>
 
-        {/* Schedule a Session Section */}
-        <div>
-          <h2 className="text-2xl font-semibold text-foreground tracking-wide mb-8 text-center">
-            Schedule a Session
-          </h2>
-          
-          <div className="space-y-4 max-w-4xl mx-auto">
-            {counselors.map((counselor, index) => (
-              <CounselorCard
-                key={index}
-                name={counselor.name}
-                specialty={counselor.specialty}
-                image={counselor.image}
-                onBookSession={() => handleBookSession(counselor.name)}
-              />
-            ))}
+        
+        <div className="mb-12">
+          <div className="bg-white/70 backdrop-blur-md border border-white/20 rounded-3xl p-8 text-center shadow-soft">
+            <div className="mb-6">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
+                <Heart className="w-8 h-8 text-primary" />
+              </div>
+              <h2 className="text-2xl font-semibold text-foreground tracking-wide mb-2">
+                A Note For You
+              </h2>
+              <p className="text-muted-foreground text-lg leading-relaxed max-w-2xl mx-auto">
+                Remember that your feelings are valid. You are not a burden, and you are stronger than you know. 
+                This moment of pain is temporary, even if it doesn't feel that way. 
+                Be gentle with yourself—you deserve the same love and kindness you give to others.
+                YOU MATTER, YOUR LIFE MATTERS.
+              </p>
+            </div>
           </div>
         </div>
+      
 
-        {/* Additional Resources */}
-        <div className="mt-12 text-center">
-          <div className="bg-white/70 backdrop-blur-md border border-white/20 rounded-2xl p-6 max-w-2xl mx-auto shadow-soft">
-            <h3 className="text-lg font-semibold text-foreground tracking-wide mb-2">
-              Additional Resources
-            </h3>
-            <p className="text-muted-foreground text-sm">
-              Visit our Resource Library for self-help materials, wellness tips, and educational content about mental health.
-            </p>
-          </div>
-        </div>
       </div>
     </div>
   );
