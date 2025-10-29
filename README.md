@@ -1,92 +1,84 @@
+Harbor Mind - Student Mental Wellness Application 🌊
 
-check this safe--harbor.vercel.app
+Live Demo: https://harbor-mind.vercel.app/
 
-Harbor Mind - Student Mental Wellness Application
 Harbor Mind is a supportive digital space designed to promote mental wellness and provide psychological support for students. This application offers a range of tools and resources to help students manage stress, understand their mental health, and access help when needed.
 
-Key Features
-Wellness Check-in: A guided questionnaire to help students reflect on their current emotional state and track their well-being over time.
+✨ Key Features
 
-AI Companion: An interactive AI chat feature for immediate support and conversation.
+Wellness Check-in: Reflect on your emotional state and track well-being over time.
 
-Resource Library: A curated collection of articles, videos, and guided exercises on various mental health topics, including stress management, anxiety, and mindfulness.
+AI Companion: An interactive AI chat (powered by Google Gemini) for immediate support and conversation.
 
-Professional Support: Information and easy access to university counselors and crisis hotlines for immediate and professional help.
+Resource Library: Curated articles, videos, guided exercises, and interactive tools (CBT Journal, Mood Journal, Goal Planner).
 
-Personalized Recommendations: Based on the wellness check-in, the application provides tailored suggestions for resources and next steps.
+Professional Support: Easy access to crisis hotlines for immediate help.
 
-Technologies Used
-Vite: A fast and modern build tool for web development.
+Personalized Recommendations: Tailored suggestions based on check-ins.
 
-React: A JavaScript library for building user interfaces.
+🛠️ Technologies Used
 
-TypeScript: A statically typed superset of JavaScript that adds type safety.
+Frontend: Vite, React, TypeScript, Tailwind CSS, Shadcn UI
 
-Tailwind CSS: A utility-first CSS framework for rapid UI development.
+Backend: Firebase (Authentication, Firestore Realtime Database)
 
-Shadcn UI: A collection of re-usable UI components.
+AI: Google Gemini API (via Vercel Serverless Function)
 
-Getting Started
-To get a local copy up and running, follow these simple steps.
+Deployment: Vercel
 
-Prerequisites
-Node.js (v18 or higher recommended)
+🚀 Getting Started Locally
 
-npm (or yarn/pnpm)
+Prerequisites:
 
-Installation & Setup
+Node.js (v18+)
+
+npm / yarn / pnpm
+
+Setup:
+
 Clone the repository:
 
-Bash
-
-git clone https://github.com/your-username/harbor-mind.git
-Navigate to the project directory:
-
-Bash
-
+git clone [https://github.com/Saurabhsingh0419/harbor-mind.git](https://github.com/Saurabhsingh0419/harbor-mind.git) 
 cd harbor-mind
+
+
 Install dependencies:
 
-Bash
-
 npm install
-Start the development server:
 
-Bash
 
-npm run dev
-The application will be available at http://localhost:8080.
+Set up Environment Variables:
 
-Available Scripts
-In the project directory, you can run:
+Create a .env.local file in the project root.
 
-npm run dev: Runs the app in development mode.
+Add your Firebase client keys (prefixed with VITE_) and your Google Gemini API key (named GEMINI_API_KEY). Refer to Firebase and Google AI Studio documentation for obtaining these.
 
-npm run build: Builds the app for production to the dist folder.
+Add Firebase Admin SDK keys (service account email and private key) for the backend API.
 
-npm run lint: Lints the code to find and fix problems.
+Run the development server (using Vercel CLI to include the API):
 
-npm run preview: Serves the production build locally for preview.
+npm install -g vercel # If you don't have it installed
+vercel dev
 
-Project Structure
-The project follows a standard Vite + React structure:
 
-/
-├── public/              # Static assets
-├── src/
-│   ├── assets/          # Images, fonts, etc.
-│   ├── components/      # Reusable UI components
-│   │   ├── ui/          # Shadcn UI components
-│   │   └── ...
-│   ├── hooks/           # Custom React hooks
-│   ├── lib/             # Utility functions
-│   ├── pages/           # Page components for routing
-│   ├── App.tsx          # Main application component
-│   └── main.tsx         # Entry point of the application
-├── package.json         # Project dependencies and scripts
-└── ...
-Contributing
-Contributions are welcome! If you have suggestions for improving the application, please open an issue or submit a pull request.
+The application will be available at http://localhost:XXXX (Vercel CLI will specify the port).
 
-Deployment
-To deploy the application, you can use any static site hosting service like Vercel, Netlify, or GitHub Pages. Run npm run build to create a production-ready build in the dist/ directory, and then deploy the contents of that directory.
+📜 Available Scripts
+
+npm run dev: Starts the Vite development server (frontend only).
+
+npm run build: Creates a production build in dist/.
+
+npm run lint: Lints the code.
+
+npm run preview: Serves the production build locally.
+
+vercel dev: Runs both frontend and the serverless API locally (recommended).
+
+🤝 Contributing
+
+Contributions, issues, and feature requests are welcome! Feel free to check the issues page.
+
+(Deployment)
+
+This project is deployed on Vercel. Connect your GitHub repository to Vercel for automatic deployments on push. Ensure all necessary environment variables (Firebase keys, Gemini API key, etc.) are configured in your Vercel project settings.
